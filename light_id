@@ -297,17 +297,34 @@
     font-size: 0.9rem;
     color: #cbd5e1;
     line-height: 1.6;
+   .home-btn {
+    background: #475569;
+    color: #f8fafc;
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 7px;
+    font-size: 0.95rem;
+    font-weight: bold;
+    transition: background 0.2s;
+    border: 1px solid #64748b;
+  }
+  .home-btn:hover {
+    background: #334155;
+    color: #38bdf8;
   }
 </style>
 </head>
 <body>
 
 <div class="container">
-  <div class="top-bar">
+<div class="top-bar">
     <h2>物理光學互動實驗室：雙狹縫干涉 ＆ 單狹縫繞射</h2>
-    <div class="exp-tabs">
-      <button type="button" id="tabDouble" class="tab-btn active-tab" onclick="window.setExpType('double')">雙狹縫／光柵干涉</button>
-      <button type="button" id="tabSingle" class="tab-btn" onclick="window.setExpType('single')">單狹縫繞射</button>
+    <div style="display: flex; gap: 12px; align-items: center;">
+      <div class="exp-tabs">
+        <button type="button" id="tabDouble" class="tab-btn active-tab" onclick="window.setExpType('double')">雙狹縫／光柵干涉</button>
+        <button type="button" id="tabSingle" class="tab-btn" onclick="window.setExpType('single')">單狹縫繞射</button>
+      </div>
+      <a href="index.html" class="home-btn">🏠 返回實驗室首頁</a>
     </div>
   </div>
   
