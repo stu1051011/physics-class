@@ -1433,10 +1433,24 @@
             ctx.strokeStyle = isNmos ? '#38bdf8' : '#fb923c';
             ctx.lineWidth = 1.2;
             ctx.stroke();
+            const valText = ` = ${vgSign}${vgValue.toFixed(1)}V`;
             ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'left';
+
             ctx.font = '700 12px Inter, monospace';
-            ctx.textAlign = 'center';
-            ctx.fillText(`V_G = ${vgSign}${vgValue.toFixed(1)}V`, CROSS_W / 2, 21);
+            const wV = ctx.measureText('V').width;
+            const wVal = ctx.measureText(valText).width;
+            ctx.font = '700 8.5px Inter, monospace';
+            const wG = ctx.measureText('G').width;
+
+            const startX = CROSS_W / 2 - (wV + wG + wVal) / 2;
+            ctx.font = '700 12px Inter, monospace';
+            ctx.fillText('V', startX, 21);
+            ctx.font = '700 8.5px Inter, monospace';
+            ctx.fillText('G', startX + wV, 24);
+            ctx.font = '700 12px Inter, monospace';
+            ctx.fillText(valText, startX + wV + wG, 21);
+            ctx.textAlign = 'center'; // 還原對齊，避免影響後續 S/D 標籤
 
             const srcCX = GEO.srcX + GEO.wellW / 2;
             const drnCX = GEO.drnX + GEO.wellW / 2;
