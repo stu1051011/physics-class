@@ -1,0 +1,1977 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>矽 (Si) 摻雜模擬 — N 型 (摻磷 P) 與 P 型 (摻硼 B) 載子動態視覺化</title>
+    <!-- 引入 Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Inter 與 Noto Sans TC 字體 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: #0b1120;
+            color: #e2e8f0;
+        }
+
+        /* 深色科技實驗室細緻青色網格背景 */
+        .lab-grid {
+            background-image:
+                linear-gradient(to right, rgba(56, 189, 248, 0.045) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(56, 189, 248, 0.045) 1px, transparent 1px);
+            background-size: 28px 28px;
+        }
+
+        /* 返回實驗室首頁按鈕精緻樣式 */
+        .home-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.96));
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            color: #e0f2fe;
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-decoration: none;
+            box-shadow: 0 4px 14px rgba(2, 132, 199, 0.16);
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        .home-btn:hover {
+            border-color: rgba(56, 189, 248, 0.8);
+            background: linear-gradient(135deg, rgba(14, 116, 144, 0.45), rgba(15, 23, 42, 0.98));
+            color: #ffffff;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(56, 189, 248, 0.25);
+        }
+
+        /* 雙向電場滑桿自訂樣式 */
+        input[type="range"].slider-field {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            border-radius: 999px;
+            outline: none;
+            cursor: pointer;
+            background: linear-gradient(90deg, #0284c7 0%, #334155 50%, #ea580c 100%);
+        }
+        input[type="range"].slider-field::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #f8fafc;
+            border: 2.5px solid #38bdf8;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.8);
+            transition: transform 0.15s ease;
+        }
+        input[type="range"].slider-field::-webkit-slider-thumb:hover {
+            transform: scale(1.16);
+        }
+        input[type="range"].slider-field::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #f8fafc;
+            border: 2.5px solid #38bdf8;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.8);
+        }
+
+        .toggle-track {
+            transition: background-color 0.2s ease;
+        }
+        .toggle-dot {
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body class="min-h-screen lab-grid flex flex-col selection:bg-sky-500/30">
+
+    <!-- 頂部標題列 -->
+    <header class="w-full border-b border-[#1e293b] bg-[#0b1120]/92 backdrop-blur-md sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+            <!-- 左側標題與副標題 -->
+            <div class="flex items-center gap-3.5">
+                <div class="w-11 h-11 rounded-xl bg-[#111827] border border-[#1e293b] flex items-center justify-center shadow-lg shrink-0 relative overflow-hidden">
+                    <span class="w-5 h-5 rounded-full border-2 border-dashed border-orange-400 shadow-[0_0_8px_#fb923c] absolute right-1.5"></span>
+                    <span class="w-3.5 h-3.5 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8] absolute left-2"></span>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-xl font-extrabold tracking-tight text-white">
+                        矽 (Si) 摻雜模擬 — N 型 (摻磷 P) 與 P 型 (摻硼 B) 載子動態視覺化
+                    </h1>
+                    <p class="text-xs sm:text-sm text-slate-400 mt-0.5">
+                        從 4 價矽共價鍵出發：觀察 5 價磷釋放自由電子與 3 價硼產生電洞接力填補
+                    </p>
+                </div>
+            </div>
+
+            <!-- 右側載子圖例與返回首頁 -->
+            <div class="flex flex-wrap items-center gap-2.5 sm:gap-3">
+                <div class="flex flex-wrap items-center gap-3 text-xs bg-[#111827] px-3.5 py-2 rounded-xl border border-[#1e293b]">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3.5 h-3.5 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8] flex items-center justify-center text-[10px] font-black text-slate-950">−</span>
+                        <span class="text-slate-200 font-medium">電子 (e⁻)</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-4 h-4 rounded-full border-2 border-orange-400 border-dashed shadow-[0_0_8px_#fb923c] flex items-center justify-center text-[10px] font-black text-orange-300">+</span>
+                        <span class="text-slate-200 font-medium">電洞 (h⁺)</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3.5 h-3.5 rounded-full border-2 border-cyan-300 bg-amber-300/30 shadow-[0_0_10px_#fde047]"></span>
+                        <span class="text-slate-200 font-medium">填入漣漪</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="px-1.5 py-0.5 rounded bg-indigo-950/90 border border-indigo-400/50 text-indigo-200 font-bold text-[10px]">P⁺</span>
+                        <span class="px-1.5 py-0.5 rounded bg-rose-950/90 border border-orange-400/50 text-orange-200 font-bold text-[10px]">B⁻</span>
+                        <span class="text-slate-200 font-medium">固定離子</span>
+                    </div>
+                </div>
+                <a href="index.html" class="home-btn">🏠 返回實驗室首頁</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主內容區 -->
+    <main class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 py-5 flex flex-col gap-5">
+
+        <!-- 1. 頂部控制列 -->
+        <section class="rounded-2xl bg-[#111827] border border-[#1e293b] p-4 shadow-xl flex flex-col gap-4">
+            <!-- 第一列：模式分頁 Tabs + 教學開關 -->
+            <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-3.5">
+                <!-- 模式切換分頁 -->
+                <div class="inline-flex flex-wrap rounded-xl bg-[#0b1120] p-1 border border-[#1e293b] gap-1 self-start">
+                    <button id="tab-compare" onclick="switchTab('compare')" class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all bg-sky-500 text-slate-950 shadow-md shadow-sky-500/25">
+                        左右對比模式：N 型 (Si+P) vs P 型 (Si+B)
+                    </button>
+                    <button id="tab-lab" onclick="switchTab('lab')" class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all text-slate-300 hover:text-white hover:bg-slate-800/70">
+                        純矽 (Si) 自由摻雜實驗室
+                    </button>
+                </div>
+
+                <!-- 教學控制開關與暫停按鈕 -->
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <!-- 慢動作觀察 (0.3x) -->
+                    <label class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-[#0b1120] border border-[#1e293b] cursor-pointer select-none hover:border-amber-500/60 transition">
+                        <input type="checkbox" id="toggle-slowmo" onchange="handleToggleChange()" class="sr-only peer">
+                        <div class="w-9 h-5 bg-slate-700 rounded-full peer peer-checked:bg-amber-500 relative toggle-track">
+                            <div class="w-3.5 h-3.5 bg-white rounded-full absolute top-[3px] left-[3px] peer-checked:translate-x-4 toggle-dot shadow"></div>
+                        </div>
+                        <span class="text-xs sm:text-sm font-semibold text-amber-200">慢動作觀察 (0.3x)</span>
+                    </label>
+
+                    <!-- 顯示微觀移動與跳躍軌跡箭頭 -->
+                    <label class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-[#0b1120] border border-[#1e293b] cursor-pointer select-none hover:border-sky-500/60 transition">
+                        <input type="checkbox" id="toggle-arrows" checked onchange="handleToggleChange()" class="sr-only peer">
+                        <div class="w-9 h-5 bg-slate-700 rounded-full peer peer-checked:bg-sky-500 relative toggle-track">
+                            <div class="w-3.5 h-3.5 bg-white rounded-full absolute top-[3px] left-[3px] peer-checked:translate-x-4 toggle-dot shadow"></div>
+                        </div>
+                        <span class="text-xs sm:text-sm font-semibold text-slate-200">顯示微觀移動與跳躍軌跡箭頭</span>
+                    </label>
+
+                    <!-- 暫停 / 繼續 -->
+                    <button id="btn-pause" onclick="togglePause()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/25 active:scale-95 transition">
+                        <span id="pause-icon">⏸</span>
+                        <span id="pause-text">暫停</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 第二列：外加電場控制滑桿 + 快速預設按鈕 -->
+            <div class="pt-3.5 border-t border-[#1e293b] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <!-- 外加電場滑桿 -->
+                <div class="flex-1 flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div class="flex items-center gap-2 shrink-0">
+                        <span class="px-2 py-0.5 rounded-md bg-sky-500/15 text-sky-300 border border-sky-400/30 text-xs font-bold">外加電場</span>
+                        <span id="field-readout" class="font-mono text-sm font-extrabold text-orange-300 min-w-[138px]">
+                            +3.0V（左 + 右 −）
+                        </span>
+                    </div>
+
+                    <div class="flex-1 flex items-center gap-2.5 pb-3 sm:pb-0">
+                        <span class="text-[11px] font-mono text-sky-300 whitespace-nowrap">−5V (左−右+)</span>
+                        <div class="relative flex-1 flex items-center">
+                            <input type="range" id="slider-field" min="-5" max="5" step="0.5" value="3" oninput="onFieldSliderInput(this.value)" class="w-full slider-field">
+                            <div class="absolute left-1/2 -bottom-4 -translate-x-1/2 text-[10px] font-mono text-slate-400 font-bold pointer-events-none select-none">
+                                ▲ 0V 熱運動
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-mono text-orange-300 whitespace-nowrap">+5V (左+右−)</span>
+                    </div>
+                </div>
+
+                <!-- 快速預設按鈕 -->
+                <div class="flex flex-wrap items-center gap-2 shrink-0">
+                    <button onclick="setFieldPreset(0)" class="px-3 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 active:scale-95 transition">
+                        純熱運動 (0V)
+                    </button>
+                    <button onclick="setFieldPreset(3)" class="px-3 py-2 rounded-xl text-xs font-bold bg-orange-950/80 hover:bg-orange-900/80 text-orange-200 border border-orange-500/45 active:scale-95 transition">
+                        開啟電場導通 (+3V)
+                    </button>
+                    <button onclick="setFieldPreset(-3)" class="px-3 py-2 rounded-xl text-xs font-bold bg-sky-950/80 hover:bg-sky-900/80 text-sky-200 border border-sky-500/45 active:scale-95 transition">
+                        反轉電場 (−3V)
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2A. 模式一：左右對比模式（N 型 vs P 型，各 4×3 矽晶格） -->
+        <section id="view-compare" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            <!-- 左側卡片：N 型半導體 (Si + P) -->
+            <article class="rounded-2xl bg-[#111827] border border-sky-500/35 shadow-2xl shadow-black/50 overflow-hidden flex flex-col">
+                <div class="px-5 py-3 bg-gradient-to-r from-sky-950/65 to-[#111827] border-b border-[#1e293b] flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8]"></span>
+                        <h2 class="text-base sm:text-lg font-extrabold text-sky-100">N 型半導體（矽摻雜 5 價磷 P）</h2>
+                    </div>
+                    <span id="ntype-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-sky-950/90 text-sky-300 border border-sky-500/45 font-mono">
+                        自由電子 e⁻：2 ｜ P⁺ 離子：2
+                    </span>
+                </div>
+
+                <!-- 互動提示與電場狀態條 -->
+                <div class="px-5 py-2 bg-[#0b1120]/75 border-b border-[#1e293b] flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <span class="text-sky-300/90 font-medium">👆 點擊畫布上任意 Si／P 原子可增減磷摻雜</span>
+                    <span id="ntype-field-state" class="font-mono text-slate-300">電場導通：電子朝正極高速滑行</span>
+                </div>
+
+                <!-- N 型 60fps Canvas -->
+                <div class="relative w-full bg-[#0b1120] p-2 sm:p-3">
+                    <div class="w-full aspect-[16/10] relative">
+                        <canvas id="canvas-ntype" class="w-full h-full block rounded-xl"></canvas>
+                    </div>
+                </div>
+            </article>
+
+            <!-- 右側卡片：P 型半導體 (Si + B) -->
+            <article class="rounded-2xl bg-[#111827] border border-orange-500/35 shadow-2xl shadow-black/50 overflow-hidden flex flex-col">
+                <div class="px-5 py-3 bg-gradient-to-r from-orange-950/65 to-[#111827] border-b border-[#1e293b] flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-orange-400 shadow-[0_0_8px_#fb923c]"></span>
+                        <h2 class="text-base sm:text-lg font-extrabold text-orange-100">P 型半導體（矽摻雜 3 價硼 B）</h2>
+                    </div>
+                    <span id="ptype-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-orange-950/90 text-orange-300 border border-orange-500/45 font-mono">
+                        電洞 h⁺：2 ｜ B⁻ 離子：2
+                    </span>
+                </div>
+
+                <!-- 互動提示與電場狀態條 -->
+                <div class="px-5 py-2 bg-[#0b1120]/75 border-b border-[#1e293b] flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <span class="text-orange-300/90 font-medium">👆 點擊畫布上任意 Si／B 原子可增減硼摻雜</span>
+                    <span id="ptype-field-state" class="font-mono text-slate-300">電子接力填洞 → 電洞朝負極移動</span>
+                </div>
+
+                <!-- P 型 60fps Canvas -->
+                <div class="relative w-full bg-[#0b1120] p-2 sm:p-3">
+                    <div class="w-full aspect-[16/10] relative">
+                        <canvas id="canvas-ptype" class="w-full h-full block rounded-xl"></canvas>
+                    </div>
+                </div>
+            </article>
+
+        </section>
+
+        <!-- 2B. 模式二：純矽 (Si) 自由摻雜實驗室（單一大型 5×4 矽晶格） -->
+        <section id="view-lab" class="hidden rounded-2xl bg-[#111827] border border-indigo-500/40 shadow-2xl shadow-black/50 overflow-hidden flex flex-col">
+            <!-- 實驗室工具列 -->
+            <div class="px-5 py-3.5 bg-gradient-to-r from-indigo-950/60 via-[#111827] to-[#111827] border-b border-[#1e293b] flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-xs font-bold text-slate-400 mr-1">選擇植入工具：</span>
+                    <button id="tool-P" onclick="selectLabTool('P')" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold border transition-all bg-sky-500 text-slate-950 border-sky-300 shadow-lg shadow-sky-500/20">
+                        ⚡ 植入磷 P (5價 → +e⁻)
+                    </button>
+                    <button id="tool-B" onclick="selectLabTool('B')" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold border transition-all bg-slate-800/90 text-orange-200 border-orange-500/35 hover:bg-orange-950/70">
+                        ⭕ 植入硼 B (3價 → +h⁺)
+                    </button>
+                    <button id="tool-Si" onclick="selectLabTool('Si')" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold border transition-all bg-slate-800/90 text-slate-200 border-slate-600 hover:bg-slate-700">
+                        ↺ 還原純矽 Si (4價)
+                    </button>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                    <button onclick="loadLabDemo()" class="px-3 py-2 rounded-xl text-xs font-bold bg-indigo-950/80 hover:bg-indigo-900 text-indigo-200 border border-indigo-500/40 active:scale-95 transition">
+                        填入示範摻雜
+                    </button>
+                    <button onclick="resetLabToPureSi()" class="px-3 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 active:scale-95 transition">
+                        清除重設為純矽
+                    </button>
+                </div>
+            </div>
+
+            <!-- 即時載子與晶體屬性儀表列 -->
+            <div class="px-5 py-2.5 bg-[#0b1120]/80 border-b border-[#1e293b] flex flex-wrap items-center justify-between gap-3 text-xs">
+                <span class="text-indigo-200 font-medium">👆 直接點擊下方 5×4 晶格中的任意原子，即可即時替換並觀察載子變化！</span>
+                <div class="flex flex-wrap items-center gap-2 font-mono">
+                    <span id="lab-type-pill" class="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200 border border-slate-600 font-bold">目前屬性：純質矽 (Intrinsic)</span>
+                    <span id="lab-e-count" class="px-2.5 py-1 rounded-lg bg-sky-950/80 text-sky-300 border border-sky-500/35 font-bold">自由電子 e⁻：0</span>
+                    <span id="lab-h-count" class="px-2.5 py-1 rounded-lg bg-orange-950/80 text-orange-300 border border-orange-500/35 font-bold">電洞 h⁺：0</span>
+                </div>
+            </div>
+
+            <!-- 大型 5×4 自由摻雜 60fps Canvas -->
+            <div class="w-full bg-[#0b1120] p-2.5 sm:p-4">
+                <div class="w-full aspect-[16/8.2] sm:aspect-[16/7.6] relative">
+                    <canvas id="canvas-lab" class="w-full h-full block rounded-xl"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. 底部雙欄精準對照解說卡片 + 製程實務連結 -->
+        <section class="flex flex-col gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                <!-- 左欄：N 型半導體 -->
+                <div class="rounded-2xl bg-[#111827] border border-sky-500/30 p-5 shadow-xl flex flex-col justify-between gap-3">
+                    <div>
+                        <div class="flex items-center justify-between gap-2 mb-3">
+                            <div class="flex items-center gap-2.5">
+                                <span class="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-300 border border-sky-400/40 flex items-center justify-center font-black text-sm">P</span>
+                                <h3 class="text-base sm:text-lg font-extrabold text-sky-200">N 型半導體（摻雜 5A 族磷 P）</h3>
+                            </div>
+                            <span class="text-xs font-mono px-2.5 py-1 rounded-full bg-sky-950 text-sky-300 border border-sky-700/60">多數載子：電子 e⁻</span>
+                        </div>
+                        <ul class="space-y-2 text-xs sm:text-sm text-slate-300 leading-relaxed">
+                            <li class="flex items-start gap-2">
+                                <span class="text-sky-400 mt-0.5 font-bold">•</span>
+                                <span><strong>多出 1 顆自由電子：</strong>磷原子擁有 5 顆價電子，其中 4 顆與相鄰矽原子形成完整共價鍵，多出的第 5 顆電子僅受極弱束縛，常溫即可掙脫成為<strong>自由電子 (e⁻)</strong>。</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-sky-400 mt-0.5 font-bold">•</span>
+                                <span><strong>固定不動的 P⁺ 離子：</strong>磷原子失去 1 顆電子後帶 +1 正電（標示 <strong class="text-indigo-300">P⁺ 固定</strong>），但它牢牢鎖在晶格中不參與導電；整體晶體正負電荷仍完全抵銷，<strong>維持電中性</strong>。</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-sky-400 mt-0.5 font-bold">•</span>
+                                <span><strong>高遷移率導通：</strong>施加電場後，自由電子在晶格通道中直接朝<strong>正極 (+)</strong> 高速滑行，移動速度明顯快於電洞。</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 右欄：P 型半導體 -->
+                <div class="rounded-2xl bg-[#111827] border border-orange-500/30 p-5 shadow-xl flex flex-col justify-between gap-3">
+                    <div>
+                        <div class="flex items-center justify-between gap-2 mb-3">
+                            <div class="flex items-center gap-2.5">
+                                <span class="w-8 h-8 rounded-lg bg-orange-500/20 text-orange-300 border border-orange-400/40 flex items-center justify-center font-black text-sm">B</span>
+                                <h3 class="text-base sm:text-lg font-extrabold text-orange-200">P 型半導體（摻雜 3A 族硼 B）</h3>
+                            </div>
+                            <span class="text-xs font-mono px-2.5 py-1 rounded-full bg-orange-950 text-orange-300 border border-orange-700/60">多數載子：電洞 h⁺</span>
+                        </div>
+                        <ul class="space-y-2 text-xs sm:text-sm text-slate-300 leading-relaxed">
+                            <li class="flex items-start gap-2">
+                                <span class="text-orange-400 mt-0.5 font-bold">•</span>
+                                <span><strong>缺少 1 顆電子形成電洞：</strong>硼原子僅有 3 顆價電子，與周圍 4 顆矽原子牽手時少 1 顆電子，在共價鍵上留下帶等效正電的空位，即為<strong>電洞 (h⁺)</strong>。</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-orange-400 mt-0.5 font-bold">•</span>
+                                <span><strong>價電子接力填洞：</strong>外加電場時，相鄰共價鍵的實心電子一格一格朝<strong>正極 (+)</strong> 跳躍並卡入空位，使空心電洞宏觀上朝<strong>負極 (−)</strong> 移動（因需逐格接力，遷移率低於自由電子）。</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <span class="text-orange-400 mt-0.5 font-bold">•</span>
+                                <span><strong>固定不動的 B⁻ 離子：</strong>硼原子吸引相鄰電子補齊第 4 條鍵後帶 −1 負電（標示 <strong class="text-orange-300">B⁻ 固定</strong>），牢牢鎖在晶格中，整體晶體同樣<strong>維持電中性</strong>。</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 半導體製程實務連結提示條 -->
+            <div class="rounded-2xl bg-gradient-to-r from-[#111827] via-indigo-950/40 to-[#111827] border border-indigo-500/35 px-5 py-3.5 shadow-lg flex flex-col sm:flex-row sm:items-center gap-3">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-indigo-500/20 border border-indigo-400/40 text-indigo-200 text-xs font-extrabold shrink-0 self-start sm:self-center">
+                    <span>🏭 半導體製程實務連結</span>
+                </div>
+                <p class="text-xs sm:text-sm text-slate-200 leading-relaxed">
+                    在現代晶圓廠中，工程師透過高精度的<strong>「離子植入 (Ion Implantation)」</strong>機台將磷 (P) 或硼 (B) 離子精準打入矽晶圓，再經高溫退火活化晶格；這項技術不僅能大幅<strong>降低多晶矽閘極與插塞的電阻</strong>，更是製造電晶體<strong>源／汲極 (S/D) 重摻雜區</strong>、形成 <strong>PN 接面</strong>與低電阻<strong>歐姆接觸</strong>的核心製程。
+                </p>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="w-full py-3.5 text-center text-xs text-slate-500 border-t border-[#1e293b] mt-2">
+        半導體物理互動教學模擬 ｜ 提示：點擊畫布上的矽原子即可即時植入磷 (P) 或硼 (B)，開啟「0.3x 慢動作」最能細看電子卡入電洞的瞬間！
+    </footer>
+
+    <script>
+        /**
+         * ============================================================================
+         * 矽 (Si) 摻雜模擬引擎 — N 型 (摻磷 P) 與 P 型 (摻硼 B) 60fps 動態視覺化
+         * 設計特色：
+         *  1. 完整建構二維共價鍵圖譜 (LatticeWorld)，支援任意 cols × rows 晶格
+         *  2. 每個共價鍵繪製雙線結構與兩顆安定價電子點；缺電子時轉化為發光空心電洞環
+         *  3. 電洞移動真實透過「相鄰共價鍵電子沿拋物線跳躍、精準卡入填滿 (Snap & Fill)」
+         *  4. 自由電子在晶格間隙高速流暢滑行，遷移率明顯高於電洞接力移動
+         *  5. 全面禁止 Canvas 出現底線變數，採用正式 Unicode 上下標與向量繪製
+         * ============================================================================
+         */
+
+        // 全域模擬控制狀態
+        const appState = {
+            activeTab: 'compare', // 'compare' | 'lab'
+            voltage: 3.0,         // -5.0V ~ +5.0V；正值 = 左正 (+) 右負 (−)，負值 = 左負 (−) 右正 (+)
+            slowMo: false,
+            showArrows: true,
+            isPaused: false,
+            labTool: 'P',         // 'P' | 'B' | 'Si'
+            simTime: 0
+        };
+
+        // 緩動函式：賦予電子飛入電洞俐落的「卡扣 (Snap)」手感
+        function easeSnap(t) {
+            if (t < 0.5) return 2 * t * t;
+            return 1 - Math.pow(-2 * t + 2, 2) / 2;
+        }
+
+        // 二次貝茲曲線求點
+        function quadBezier(x0, y0, cx, cy, x1, y1, t) {
+            const inv = 1 - t;
+            return {
+                x: inv * inv * x0 + 2 * inv * t * cx + t * t * x1,
+                y: inv * inv * y0 + 2 * inv * t * cy + t * t * y1
+            };
+        }
+
+        // ============================================================================
+        // 矽晶格模擬世界類別 (同時驅動左右對比 4×3 畫布 與 自由實驗室 5×4 畫布)
+        // ============================================================================
+        class LatticeWorld {
+            constructor(config) {
+                this.id = config.id;
+                this.cols = config.cols;
+                this.rows = config.rows;
+                this.logicalW = config.logicalW;
+                this.logicalH = config.logicalH;
+                this.atomRadius = config.atomRadius || 20;
+                this.allowedClickMode = config.allowedClickMode; // 'N' | 'P' | 'LAB'
+
+                // 電極與晶格幾何區域
+                this.elecW = config.elecW || 32;
+                this.elecPad = config.elecPad || 12;
+                this.topHeaderH = config.topHeaderH || 54;
+                this.bottomFooterH = config.bottomFooterH || 34;
+
+                this.atoms = [];     // { id, c, r, x, y, type: 'Si'|'P'|'B', pulse: 0 }
+                this.bonds = [];     // { id, orientation: 'h'|'v', a1, a2, x, y, x1, y1, x2, y2, isLeftEdge, isRightEdge, row, hasHole, hoppingIn, hoppingOut, neighbors: [] }
+                this.freeElectrons = []; // { x, y, vx, vy, laneY, phase, flash }
+                this.hops = [];      // { fromBond, toBond, fromPos, toPos, isFromElectrode, isToElectrode, exitBond, t, duration }
+                this.ripples = [];   // { x, y, t, maxR, kind: 'fill'|'spawnE'|'spawnH'|'electrode' }
+                this.hoverAtomIdx = -1;
+                this.hopCooldown = 0.25;
+
+                this.buildGeometry();
+            }
+
+            /**
+             * 建構原子座標與完整共價鍵拓撲鄰接圖
+             */
+            buildGeometry() {
+                const leftBound = this.elecPad + this.elecW + 14;
+                const rightBound = this.logicalW - this.elecPad - this.elecW - 14;
+                const topBound = this.topHeaderH + 14;
+                const bottomBound = this.logicalH - this.bottomFooterH - 12;
+
+                this.crystalRect = {
+                    left: leftBound,
+                    right: rightBound,
+                    top: topBound,
+                    bottom: bottomBound
+                };
+
+                const availW = rightBound - leftBound;
+                const availH = bottomBound - topBound;
+
+                // 左右留半格給邊緣共價鍵，讓原子均勻分佈
+                const dx = availW / this.cols;
+                const dy = availH / this.rows;
+                this.dx = dx;
+                this.dy = dy;
+
+                this.atoms = [];
+                for (let r = 0; r < this.rows; r++) {
+                    for (let c = 0; c < this.cols; c++) {
+                        this.atoms.push({
+                            id: r * this.cols + c,
+                            c,
+                            r,
+                            x: leftBound + (c + 0.5) * dx,
+                            y: topBound + (r + 0.5) * dy,
+                            type: 'Si',
+                            pulse: 0
+                        });
+                    }
+                }
+
+                // 計算自由電子的水平晶格滑行通道 Y 座標（位於各列原子之間的空隙）
+                this.corridorYs = [];
+                this.corridorYs.push(topBound + dy * 0.14);
+                for (let r = 0; r < this.rows - 1; r++) {
+                    this.corridorYs.push(topBound + (r + 1) * dy);
+                }
+                this.corridorYs.push(bottomBound - dy * 0.14);
+
+                // 建構所有共價鍵節點 (水平內部鍵 + 左右電極接壤鍵 + 垂直內部鍵)
+                this.bonds = [];
+                let bid = 0;
+                const getAtom = (c, r) => this.atoms[r * this.cols + c];
+
+                // 1) 水平共價鍵（包含左邊緣與右邊緣）
+                for (let r = 0; r < this.rows; r++) {
+                    const y = getAtom(0, r).y;
+                    // 左邊緣鍵（連接左電極側）
+                    const aFirst = getAtom(0, r);
+                    this.bonds.push({
+                        id: bid++,
+                        orientation: 'h',
+                        a1: null,
+                        a2: aFirst,
+                        x1: leftBound - 6,
+                        y1: y,
+                        x2: aFirst.x,
+                        y2: y,
+                        x: (leftBound - 2 + aFirst.x - this.atomRadius) / 2,
+                        y: y,
+                        isLeftEdge: true,
+                        isRightEdge: false,
+                        row: r,
+                        hasHole: false,
+                        neighbors: []
+                    });
+
+                    // 內部水平鍵
+                    for (let c = 0; c < this.cols - 1; c++) {
+                        const a1 = getAtom(c, r);
+                        const a2 = getAtom(c + 1, r);
+                        this.bonds.push({
+                            id: bid++,
+                            orientation: 'h',
+                            a1,
+                            a2,
+                            x1: a1.x,
+                            y1: y,
+                            x2: a2.x,
+                            y2: y,
+                            x: (a1.x + a2.x) / 2,
+                            y: y,
+                            isLeftEdge: false,
+                            isRightEdge: false,
+                            row: r,
+                            hasHole: false,
+                            neighbors: []
+                        });
+                    }
+
+                    // 右邊緣鍵（連接右電極側）
+                    const aLast = getAtom(this.cols - 1, r);
+                    this.bonds.push({
+                        id: bid++,
+                        orientation: 'h',
+                        a1: aLast,
+                        a2: null,
+                        x1: aLast.x,
+                        y1: y,
+                        x2: rightBound + 6,
+                        y2: y,
+                        x: (aLast.x + this.atomRadius + rightBound + 2) / 2,
+                        y: y,
+                        isLeftEdge: false,
+                        isRightEdge: true,
+                        row: r,
+                        hasHole: false,
+                        neighbors: []
+                    });
+                }
+
+                // 2) 垂直共價鍵
+                for (let r = 0; r < this.rows - 1; r++) {
+                    for (let c = 0; c < this.cols; c++) {
+                        const a1 = getAtom(c, r);
+                        const a2 = getAtom(c, r + 1);
+                        this.bonds.push({
+                            id: bid++,
+                            orientation: 'v',
+                            a1,
+                            a2,
+                            x1: a1.x,
+                            y1: a1.y,
+                            x2: a2.x,
+                            y2: a2.y,
+                            x: a1.x,
+                            y: (a1.y + a2.y) / 2,
+                            isLeftEdge: false,
+                            isRightEdge: false,
+                            row: r,
+                            hasHole: false,
+                            neighbors: []
+                        });
+                    }
+                }
+
+                // 3) 建立鄰接表：共享同一顆原子的共價鍵彼此相鄰，價電子可直接跨原子跳躍填洞
+                for (let i = 0; i < this.bonds.length; i++) {
+                    for (let j = i + 1; j < this.bonds.length; j++) {
+                        const b1 = this.bonds[i];
+                        const b2 = this.bonds[j];
+                        const sharesAtom =
+                            (b1.a1 && (b1.a1 === b2.a1 || b1.a1 === b2.a2)) ||
+                            (b1.a2 && (b1.a2 === b2.a1 || b1.a2 === b2.a2));
+                        if (sharesAtom) {
+                            b1.neighbors.push(b2);
+                            b2.neighbors.push(b1);
+                        }
+                    }
+                }
+            }
+
+            /**
+             * 設定指定座標原子的種類，並同步產生或移除對應載子
+             */
+            setAtomType(c, r, newType, triggerEffect = true) {
+                const atom = this.atoms[r * this.cols + c];
+                if (!atom || atom.type === newType) return;
+
+                const oldType = atom.type;
+                atom.type = newType;
+                atom.pulse = 1.0;
+
+                // 1. 處理原本種類移除時要減少的載子
+                if (oldType === 'P') {
+                    this.removeOneFreeElectronNear(atom.x, atom.y);
+                } else if (oldType === 'B') {
+                    this.removeOneHoleNear(atom.x, atom.y);
+                }
+
+                // 2. 處理新植入種類時要新增的載子
+                if (newType === 'P') {
+                    this.spawnFreeElectronAt(atom.x, atom.y, triggerEffect);
+                } else if (newType === 'B') {
+                    this.spawnHoleNearAtom(atom, triggerEffect);
+                }
+            }
+
+            spawnFreeElectronAt(ax, ay, withRipple = true) {
+                // 挑選距離該原子最近的水平晶格通道
+                let bestY = this.corridorYs[0];
+                let minDist = Infinity;
+                for (const cy of this.corridorYs) {
+                    const d = Math.abs(cy - ay);
+                    if (d < minDist) {
+                        minDist = d;
+                        bestY = cy;
+                    }
+                }
+                const angle = Math.random() * Math.PI * 2;
+                this.freeElectrons.push({
+                    x: ax + (Math.random() - 0.5) * 18,
+                    y: ay + (ay < bestY ? 18 : -18),
+                    vx: Math.cos(angle) * 42,
+                    vy: Math.sin(angle) * 42,
+                    laneY: bestY,
+                    phase: Math.random() * Math.PI * 2
+                });
+                if (withRipple) {
+                    this.ripples.push({ x: ax, y: ay, t: 0, maxR: 34, kind: 'spawnE' });
+                }
+            }
+
+            removeOneFreeElectronNear(ax, ay) {
+                if (this.freeElectrons.length === 0) return;
+                let bestIdx = 0;
+                let minDist = Infinity;
+                this.freeElectrons.forEach((e, idx) => {
+                    const d = Math.hypot(e.x - ax, e.y - ay);
+                    if (d < minDist) {
+                        minDist = d;
+                        bestIdx = idx;
+                    }
+                });
+                this.freeElectrons.splice(bestIdx, 1);
+            }
+
+            spawnHoleNearAtom(atom, withRipple = true) {
+                // 優先找該硼原子旁邊的水平共價鍵（無電洞且未在跳躍中）
+                const adjacent = this.bonds.filter(b => (b.a1 === atom || b.a2 === atom) && !b.hasHole && !this.isBondBusy(b));
+                adjacent.sort((a, b) => (a.orientation === 'h' ? -1 : 1) - (b.orientation === 'h' ? -1 : 1));
+                let target = adjacent[0];
+
+                if (!target) {
+                    // 若周圍全滿，尋找晶格內距離最近的可用鍵
+                    const freeBonds = this.bonds.filter(b => !b.hasHole && !this.isBondBusy(b));
+                    freeBonds.sort((a, b) => Math.hypot(a.x - atom.x, a.y - atom.y) - Math.hypot(b.x - atom.x, b.y - atom.y));
+                    target = freeBonds[0];
+                }
+
+                if (target) {
+                    target.hasHole = true;
+                    if (withRipple) {
+                        this.ripples.push({ x: target.x, y: target.y, t: 0, maxR: 32, kind: 'spawnH' });
+                    }
+                }
+            }
+
+            removeOneHoleNear(ax, ay) {
+                // 優先取消與該點最近的進行中跳躍，或直接清除最近的靜止電洞
+                const holes = this.bonds.filter(b => b.hasHole && !this.isBondBusy(b));
+                if (holes.length > 0) {
+                    holes.sort((a, b) => Math.hypot(a.x - ax, a.y - ay) - Math.hypot(b.x - ax, b.y - ay));
+                    holes[0].hasHole = false;
+                    this.ripples.push({ x: holes[0].x, y: holes[0].y, t: 0, maxR: 26, kind: 'fill' });
+                    return;
+                }
+                if (this.hops.length > 0) {
+                    const removed = this.hops.pop();
+                    if (removed.toBond) removed.toBond.hasHole = false;
+                }
+            }
+
+            isBondBusy(bond) {
+                return this.hops.some(h => h.fromBond === bond || h.toBond === bond || h.exitBond === bond);
+            }
+
+            resetAllToSi() {
+                this.atoms.forEach(a => {
+                    a.type = 'Si';
+                    a.pulse = 0;
+                });
+                this.bonds.forEach(b => {
+                    b.hasHole = false;
+                });
+                this.freeElectrons = [];
+                this.hops = [];
+                this.ripples = [];
+            }
+
+            getCounts() {
+                let pCount = 0, bCount = 0, siCount = 0;
+                this.atoms.forEach(a => {
+                    if (a.type === 'P') pCount++;
+                    else if (a.type === 'B') bCount++;
+                    else siCount++;
+                });
+                const holeCount = this.bonds.filter(b => b.hasHole).length;
+                return {
+                    siCount,
+                    pCount,
+                    bCount,
+                    electronCount: this.freeElectrons.length,
+                    holeCount
+                };
+            }
+
+            /**
+             * 每幀更新：自由電子滑行 + 電洞接力填補 (Snap & Fill) + 漣漪動畫
+             */
+            update(dt) {
+                const V = appState.voltage;
+                const absV = Math.abs(V);
+                const hasField = absV >= 0.15;
+                // 物理方向：V > 0 表示左正 (+) 右負 (−) => 電場向右 (+1)，電子受力向左 (-1)，電洞受力向右 (+1)
+                const fieldDir = V > 0 ? 1 : (V < 0 ? -1 : 0);
+                const electronDir = -fieldDir;
+                const holeDir = fieldDir;
+
+                // 1. 更新原子植入閃光脈衝
+                this.atoms.forEach(a => {
+                    if (a.pulse > 0) a.pulse = Math.max(0, a.pulse - dt * 2.2);
+                });
+
+                // 2. 更新所有漣漪特效
+                for (let i = this.ripples.length - 1; i >= 0; i--) {
+                    this.ripples[i].t += dt * 1.85;
+                    if (this.ripples[i].t >= 1) this.ripples.splice(i, 1);
+                }
+
+                // 3. 更新自由電子運動（N 型高速通道滑行 / 0V 熱運動隨機漫遊）
+                const { left, right, top, bottom } = this.crystalRect;
+                this.freeElectrons.forEach(e => {
+                    if (!hasField) {
+                        // 0V 純熱運動：平滑隨機擾動
+                        e.vx += (Math.random() - 0.5) * 190 * dt;
+                        e.vy += (Math.random() - 0.5) * 190 * dt;
+                        const spd = Math.hypot(e.vx, e.vy);
+                        const maxSpd = 68;
+                        if (spd > maxSpd) {
+                            e.vx = (e.vx / spd) * maxSpd;
+                            e.vy = (e.vy / spd) * maxSpd;
+                        } else if (spd < 24) {
+                            const ang = Math.random() * Math.PI * 2;
+                            e.vx += Math.cos(ang) * 18;
+                            e.vy += Math.sin(ang) * 18;
+                        }
+                        e.x += e.vx * dt;
+                        e.y += e.vy * dt;
+
+                        // 邊界溫和反彈
+                        if (e.x < left + 8) { e.x = left + 8; e.vx = Math.abs(e.vx); }
+                        if (e.x > right - 8) { e.x = right - 8; e.vx = -Math.abs(e.vx); }
+                        if (e.y < top + 8) { e.y = top + 8; e.vy = Math.abs(e.vy); }
+                        if (e.y > bottom - 8) { e.y = bottom - 8; e.vy = -Math.abs(e.vy); }
+                    } else {
+                        // 外加電場：自由電子在晶格通道內高速朝正極 (+) 滑行
+                        const targetSpeed = (85 + absV * 32) * electronDir;
+                        e.vx += (targetSpeed - e.vx) * Math.min(1, dt * 6.5);
+
+                        // 輕柔對齊至最近水平間隙通道，避免直撞原子中心文字
+                        const wave = Math.sin(appState.simTime * 5.2 + e.phase) * 4.5;
+                        const desiredY = e.laneY + wave;
+                        e.vy = (desiredY - e.y) * 5.5;
+
+                        e.x += e.vx * dt;
+                        e.y += e.vy * dt;
+
+                        // 到達正極後吸入並從負極循環進入（代表外電路導通）
+                        if (electronDir < 0 && e.x < left - 4) {
+                            this.ripples.push({ x: left - 4, y: e.y, t: 0, maxR: 20, kind: 'electrode' });
+                            e.x = right + 2;
+                            e.laneY = this.corridorYs[Math.floor(Math.random() * this.corridorYs.length)];
+                            e.y = e.laneY;
+                        } else if (electronDir > 0 && e.x > right + 4) {
+                            this.ripples.push({ x: right + 4, y: e.y, t: 0, maxR: 20, kind: 'electrode' });
+                            e.x = left - 2;
+                            e.laneY = this.corridorYs[Math.floor(Math.random() * this.corridorYs.length)];
+                            e.y = e.laneY;
+                        }
+                    }
+                });
+
+                // 4. 更新電洞「相鄰電子拋物線跳躍填洞 (Snap & Fill)」
+                const activeHoleBonds = this.bonds.filter(b => b.hasHole && !this.isBondBusy(b));
+                const maxConcurrentHops = Math.max(1, Math.min(3, Math.ceil(this.bonds.filter(b => b.hasHole).length * 0.75)));
+
+                // 電洞接力頻率刻意慢於自由電子滑行，自然呈現 μ_p < μ_n
+                const speedScale = hasField ? (0.65 + (absV / 5.0) * 0.85) : 0.58;
+                this.hopCooldown -= dt * speedScale;
+
+                if (this.hopCooldown <= 0 && activeHoleBonds.length > 0 && this.hops.length < maxConcurrentHops) {
+                    // 隨機挑一顆待命中的電洞發起相鄰電子填洞
+                    const holeBond = activeHoleBonds[Math.floor(Math.random() * activeHoleBonds.length)];
+                    const hopCreated = this.tryStartHoleHop(holeBond, hasField, holeDir);
+                    this.hopCooldown = hopCreated ? (hasField ? 0.34 : 0.48) : 0.16;
+                }
+
+                // 推進所有進行中的電子跳躍動畫
+                for (let i = this.hops.length - 1; i >= 0; i--) {
+                    const hop = this.hops[i];
+                    hop.t += (dt * speedScale) / hop.duration;
+
+                    if (hop.t >= 1) {
+                        // 跳躍完成瞬間：「咔！」電子精準填滿原本的電洞並觸發雙層發光漣漪
+                        if (hop.toBond) {
+                            hop.toBond.hasHole = false;
+                            this.ripples.push({
+                                x: hop.toBond.x,
+                                y: hop.toBond.y,
+                                t: 0,
+                                maxR: 28,
+                                kind: 'fill'
+                            });
+                        }
+
+                        if (hop.isFromElectrode) {
+                            // 電極補入電子填滿邊緣電洞 -> 對面正極側同步抽出電子產生新電洞
+                            if (hop.exitBond && !hop.exitBond.hasHole) {
+                                hop.exitBond.hasHole = true;
+                                this.ripples.push({
+                                    x: hop.exitBond.x,
+                                    y: hop.exitBond.y,
+                                    t: 0,
+                                    maxR: 24,
+                                    kind: 'spawnH'
+                                });
+                            }
+                        } else if (hop.fromBond) {
+                            // 電子原本起跳的共價鍵正式成為新的空心電洞
+                            hop.fromBond.hasHole = true;
+                        }
+
+                        this.hops.splice(i, 1);
+                    }
+                }
+            }
+
+            /**
+             * 為指定的電洞選擇一顆相鄰共價鍵電子發起拋物線跳躍填補
+             */
+            tryStartHoleHop(holeBond, hasField, holeDir) {
+                const { left, right } = this.crystalRect;
+
+                // 情況 A：有外加電場且電洞已抵達負極側邊緣鍵 -> 負極注入電子填滿此洞，同時正極側產生新電洞
+                if (hasField) {
+                    const reachedNegEdge =
+                        (holeDir > 0 && holeBond.isRightEdge) ||
+                        (holeDir < 0 && holeBond.isLeftEdge);
+
+                    if (reachedNegEdge) {
+                        // 尋找正極側同列（或任一可用列）的邊緣鍵作為新電洞注入點
+                        const oppositeEdges = this.bonds.filter(b =>
+                            (holeDir > 0 ? b.isLeftEdge : b.isRightEdge) &&
+                            !b.hasHole &&
+                            !this.isBondBusy(b)
+                        );
+                        if (oppositeEdges.length > 0) {
+                            oppositeEdges.sort((a, b) => Math.abs(a.row - holeBond.row) - Math.abs(b.row - holeBond.row));
+                            const exitBond = oppositeEdges[0];
+                            const elecX = holeDir > 0 ? right + 10 : left - 10;
+                            this.hops.push({
+                                fromBond: null,
+                                toBond: holeBond,
+                                fromPos: { x: elecX, y: holeBond.y },
+                                toPos: { x: holeBond.x, y: holeBond.y },
+                                isFromElectrode: true,
+                                exitBond,
+                                t: 0,
+                                duration: 0.62
+                            });
+                            return true;
+                        }
+                    }
+                }
+
+                // 情況 B：從鄰接共價鍵挑選一顆實心電子跳過來填補
+                const candidates = holeBond.neighbors.filter(nb => !nb.hasHole && !this.isBondBusy(nb));
+                if (candidates.length === 0) return false;
+
+                let chosen = null;
+                if (!hasField) {
+                    // 0V 熱運動：隨機挑選任一相鄰共價鍵（優先保留在晶格內部活動）
+                    const inner = candidates.filter(nb => !nb.isLeftEdge && !nb.isRightEdge);
+                    const pool = inner.length > 0 ? inner : candidates;
+                    chosen = pool[Math.floor(Math.random() * pool.length)];
+                } else {
+                    // 外加電場：電洞要朝 holeDir 移動 => 電子必須從 holeDir 那一側跳過來！
+                    // 也就是選擇 (nb.x - holeBond.x) * holeDir > 0 的相鄰鍵
+                    const forward = candidates.filter(nb => (nb.x - holeBond.x) * holeDir > 4);
+                    if (forward.length > 0) {
+                        // 優先選最直接沿水平方向推進的相鄰鍵，呈現清晰俐落的接力跳躍
+                        forward.sort((a, b) => {
+                            const scoreA = (a.x - holeBond.x) * holeDir - Math.abs(a.y - holeBond.y) * 0.45;
+                            const scoreB = (b.x - holeBond.x) * holeDir - Math.abs(b.y - holeBond.y) * 0.45;
+                            return scoreB - scoreA;
+                        });
+                        // 若有兩個分數接近的候選（如從垂直鍵轉進水平鍵），微幅隨機增加自然感
+                        const topPool = forward.slice(0, Math.min(2, forward.length));
+                        chosen = topPool[Math.floor(Math.random() * topPool.length)];
+                    } else {
+                        // 若前方暫時被其他電洞佔據，允許小幅上下錯開繞行
+                        const lateral = candidates.filter(nb => (nb.x - holeBond.x) * holeDir >= -2);
+                        if (lateral.length > 0) {
+                            chosen = lateral[Math.floor(Math.random() * lateral.length)];
+                        } else {
+                            return false;
+                        }
+                    }
+                }
+
+                if (!chosen) return false;
+
+                this.hops.push({
+                    fromBond: chosen,
+                    toBond: holeBond,
+                    fromPos: { x: chosen.x, y: chosen.y },
+                    toPos: { x: holeBond.x, y: holeBond.y },
+                    isFromElectrode: false,
+                    exitBond: null,
+                    t: 0,
+                    duration: hasField ? 0.68 : 0.78
+                });
+                return true;
+            }
+
+            /**
+             * 滑鼠 / 觸控座標命中判定（回傳點擊的原子或 null）
+             */
+            hitTestAtom(lx, ly) {
+                const hitR = this.atomRadius + 9;
+                for (let i = 0; i < this.atoms.length; i++) {
+                    const a = this.atoms[i];
+                    if (Math.hypot(lx - a.x, ly - a.y) <= hitR) {
+                        return i;
+                    }
+                }
+                return -1;
+            }
+
+            /**
+             * 處理點擊切換摻雜
+             */
+            handleClick(lx, ly) {
+                const idx = this.hitTestAtom(lx, ly);
+                if (idx === -1) return false;
+                const atom = this.atoms[idx];
+
+                if (this.allowedClickMode === 'N') {
+                    // N 型視窗：在 Si 與 P 之間切換
+                    this.setAtomType(atom.c, atom.r, atom.type === 'P' ? 'Si' : 'P', true);
+                } else if (this.allowedClickMode === 'P') {
+                    // P 型視窗：在 Si 與 B 之間切換
+                    this.setAtomType(atom.c, atom.r, atom.type === 'B' ? 'Si' : 'B', true);
+                } else {
+                    // 自由實驗室：依目前選擇工具替換
+                    this.setAtomType(atom.c, atom.r, appState.labTool, true);
+                }
+                return true;
+            }
+        }
+
+        // ============================================================================
+        // 高質感向量繪圖工具箱（全面無底線字元，支援正式上下標與發光特效）
+        // ============================================================================
+
+        function drawRoundedRect(ctx, x, y, w, h, r) {
+            const rad = typeof r === 'number' ? { tl: r, tr: r, br: r, bl: r } : r;
+            ctx.beginPath();
+            ctx.moveTo(x + rad.tl, y);
+            ctx.lineTo(x + w - rad.tr, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + rad.tr);
+            ctx.lineTo(x + w, y + h - rad.br);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - rad.br, y + h);
+            ctx.lineTo(x + rad.bl, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - rad.bl);
+            ctx.lineTo(x, y + rad.tl);
+            ctx.quadraticCurveTo(x, y, x + rad.tl, y);
+            ctx.closePath();
+        }
+
+        /**
+         * 繪製直線箭頭
+         */
+        function drawArrow(ctx, x1, y1, x2, y2, color, lineWidth = 2, headLen = 6.5, dashed = false) {
+            const angle = Math.atan2(y2 - y1, x2 - x1);
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = lineWidth;
+            ctx.lineCap = 'round';
+            if (dashed) ctx.setLineDash([4, 3]);
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.beginPath();
+            ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
+
+        /**
+         * 繪製拋物線弧形虛線箭頭（呈現微觀電子跳入電洞之路徑）
+         */
+        function drawParabolicArcArrow(ctx, x1, y1, cx, cy, x2, y2, color) {
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 3]);
+            ctx.globalAlpha = 0.88;
+
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.quadraticCurveTo(cx, cy, x2, y2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            const angle = Math.atan2(y2 - cy, x2 - cx);
+            const headLen = 6.5;
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
+
+        /**
+         * 繪製【實心發光青藍色電子圓球 (e⁻)】
+         */
+        function drawSolidElectron(ctx, x, y, radius = 7.2, alpha = 1.0, highlight = false) {
+            ctx.save();
+            ctx.globalAlpha = alpha;
+
+            const grad = ctx.createRadialGradient(
+                x - radius * 0.32, y - radius * 0.32, radius * 0.15,
+                x, y, radius
+            );
+            grad.addColorStop(0, '#e0f2fe');
+            grad.addColorStop(0.45, '#38bdf8');
+            grad.addColorStop(1, '#0284c7');
+
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.shadowColor = highlight ? '#7dd3fc' : '#0ea5e9';
+            ctx.shadowBlur = highlight ? 15 : 9;
+            ctx.fill();
+
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#082f49';
+            ctx.font = `900 ${Math.round(radius * 1.5)}px Inter, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('−', x, y + 0.5);
+
+            ctx.restore();
+        }
+
+        /**
+         * 繪製【空心發光橘紅色電洞圓環 (h⁺)】
+         * 內徑精準對應實心電子球大小，呈現「等待被電子卡入填滿的空位」手感
+         */
+        function drawHollowHole(ctx, x, y, innerR = 7.2, alpha = 1.0) {
+            ctx.save();
+            ctx.globalAlpha = alpha;
+
+            // 凹槽微光底
+            ctx.beginPath();
+            ctx.arc(x, y, innerR + 1.2, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(251, 146, 60, 0.16)';
+            ctx.fill();
+
+            // 外圈發光橘紅環
+            ctx.beginPath();
+            ctx.arc(x, y, innerR + 2.4, 0, Math.PI * 2);
+            ctx.strokeStyle = '#fb923c';
+            ctx.lineWidth = 2.3;
+            ctx.shadowColor = '#f97316';
+            ctx.shadowBlur = 10;
+            ctx.stroke();
+
+            // 內圈慢速旋轉虛線
+            ctx.shadowBlur = 0;
+            ctx.beginPath();
+            ctx.arc(x, y, innerR - 0.5, appState.simTime * 0.9, appState.simTime * 0.9 + Math.PI * 2);
+            ctx.setLineDash([3, 3]);
+            ctx.strokeStyle = 'rgba(254, 215, 170, 0.72)';
+            ctx.lineWidth = 1.1;
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 中心 + 號
+            ctx.fillStyle = '#fdba74';
+            ctx.font = `900 ${Math.round(innerR * 1.4)}px Inter, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('+', x, y + 0.5);
+
+            ctx.restore();
+        }
+
+        /**
+         * 繪製【Snap & Fill 雙層發光漣漪與白金微閃光】
+         */
+        function drawRipples(ctx, rippleList) {
+            for (let i = 0; i < rippleList.length; i++) {
+                const r = rippleList[i];
+                const p = r.t;
+                const alpha = Math.max(0, 1 - p);
+
+                ctx.save();
+                if (r.kind === 'fill') {
+                    // 電子精準卡入電洞瞬間：中心白金微閃光 + 青色外環 + 暖橘色內環
+                    if (p < 0.4) {
+                        const flashA = (1 - p / 0.4) * 0.95;
+                        const flashR = r.maxR * (0.28 + p * 0.52);
+                        const grad = ctx.createRadialGradient(r.x, r.y, 0, r.x, r.y, flashR);
+                        grad.addColorStop(0, `rgba(255, 255, 255, ${flashA})`);
+                        grad.addColorStop(0.5, `rgba(253, 224, 71, ${flashA * 0.75})`);
+                        grad.addColorStop(1, 'rgba(56, 189, 248, 0)');
+                        ctx.beginPath();
+                        ctx.arc(r.x, r.y, flashR, 0, Math.PI * 2);
+                        ctx.fillStyle = grad;
+                        ctx.fill();
+                    }
+                    // 外圈青色漣漪
+                    ctx.beginPath();
+                    ctx.arc(r.x, r.y, r.maxR * (0.25 + p * 0.78), 0, Math.PI * 2);
+                    ctx.strokeStyle = `rgba(125, 211, 252, ${alpha * 0.92})`;
+                    ctx.lineWidth = 2.4 * (1 - p * 0.5);
+                    ctx.stroke();
+
+                    // 內圈暖橘色漣漪
+                    ctx.beginPath();
+                    ctx.arc(r.x, r.y, r.maxR * (0.18 + p * 0.52), 0, Math.PI * 2);
+                    ctx.strokeStyle = `rgba(253, 186, 116, ${alpha * 0.88})`;
+                    ctx.lineWidth = 1.9 * (1 - p * 0.5);
+                    ctx.stroke();
+                } else if (r.kind === 'spawnE' || r.kind === 'electrode') {
+                    ctx.beginPath();
+                    ctx.arc(r.x, r.y, r.maxR * (0.25 + p * 0.75), 0, Math.PI * 2);
+                    ctx.strokeStyle = `rgba(56, 189, 248, ${alpha * 0.85})`;
+                    ctx.lineWidth = 2.2 * (1 - p * 0.4);
+                    ctx.stroke();
+                } else if (r.kind === 'spawnH') {
+                    ctx.beginPath();
+                    ctx.arc(r.x, r.y, r.maxR * (0.25 + p * 0.75), 0, Math.PI * 2);
+                    ctx.strokeStyle = `rgba(251, 146, 60, ${alpha * 0.85})`;
+                    ctx.lineWidth = 2.2 * (1 - p * 0.4);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+        }
+
+        // ============================================================================
+        // 完整繪製單一 LatticeWorld 畫布
+        // ============================================================================
+        function renderWorld(ctx, world) {
+            const W = world.logicalW;
+            const H = world.logicalH;
+            const V = appState.voltage;
+            const absV = Math.abs(V);
+            const hasField = absV >= 0.15;
+            const leftIsPos = V > 0;
+            const fieldDir = V > 0 ? 1 : (V < 0 ? -1 : 0);
+
+            ctx.save();
+            ctx.clearRect(0, 0, W, H);
+
+            // 1. 晶體微淡底框
+            const cr = world.crystalRect;
+            drawRoundedRect(ctx, cr.left - 8, cr.top - 8, (cr.right - cr.left) + 16, (cr.bottom - cr.top) + 16, 14);
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.55)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(51, 65, 85, 0.65)';
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+
+            // 2. 繪製左右兩側電極板 (+ 紅橘發光條 / − 青藍發光條 / 0V 中性灰條)
+            const elecTop = cr.top - 6;
+            const elecH = (cr.bottom - cr.top) + 12;
+            const drawElectrode = (x, polarity) => {
+                ctx.save();
+                drawRoundedRect(ctx, x, elecTop, world.elecW, elecH, 10);
+                if (polarity === '+') {
+                    ctx.fillStyle = 'rgba(154, 52, 18, 0.45)';
+                    ctx.strokeStyle = '#fb923c';
+                    ctx.shadowColor = '#f97316';
+                    ctx.shadowBlur = 10;
+                } else if (polarity === '-') {
+                    ctx.fillStyle = 'rgba(12, 74, 110, 0.48)';
+                    ctx.strokeStyle = '#38bdf8';
+                    ctx.shadowColor = '#0ea5e9';
+                    ctx.shadowBlur = 10;
+                } else {
+                    ctx.fillStyle = 'rgba(30, 41, 59, 0.45)';
+                    ctx.strokeStyle = '#475569';
+                }
+                ctx.lineWidth = hasField ? 1.8 : 1.2;
+                ctx.fill();
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+
+                const cx = x + world.elecW / 2;
+                const cy = elecTop + elecH / 2;
+
+                if (polarity === '+' || polarity === '-') {
+                    ctx.beginPath();
+                    ctx.arc(cx, cy - 16, 11, 0, Math.PI * 2);
+                    ctx.fillStyle = polarity === '+' ? '#ea580c' : '#0284c7';
+                    ctx.fill();
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '900 16px Inter, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(polarity === '+' ? '+' : '−', cx, cy - 15.5);
+
+                    ctx.fillStyle = polarity === '+' ? '#fed7aa' : '#bae6fd';
+                    ctx.font = '700 11px "Noto Sans TC", sans-serif';
+                    ctx.fillText(polarity === '+' ? '正極' : '負極', cx, cy + 10);
+                } else {
+                    ctx.fillStyle = '#64748b';
+                    ctx.font = '700 11px Inter, monospace';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('0V', cx, cy);
+                }
+                ctx.restore();
+            };
+
+            const leftPol = !hasField ? '0' : (leftIsPos ? '+' : '-');
+            const rightPol = !hasField ? '0' : (leftIsPos ? '-' : '+');
+            drawElectrode(world.elecPad, leftPol);
+            drawElectrode(W - world.elecPad - world.elecW, rightPol);
+
+            // 3. 畫布頂部：外加電場方向箭頭 E（嚴格無底線）
+            const headerY = 26;
+            if (hasField) {
+                const arrowSpan = Math.min(280, W * 0.48);
+                const xL = W / 2 - arrowSpan / 2;
+                const xR = W / 2 + arrowSpan / 2;
+
+                if (fieldDir > 0) {
+                    drawArrow(ctx, xL, headerY, xR, headerY, 'rgba(250, 204, 21, 0.78)', 2.2, 7.5, true);
+                } else {
+                    drawArrow(ctx, xR, headerY, xL, headerY, 'rgba(250, 204, 21, 0.78)', 2.2, 7.5, true);
+                }
+
+                // 中央電場標籤膠囊
+                const pillW = 196;
+                drawRoundedRect(ctx, W / 2 - pillW / 2, headerY - 13, pillW, 26, 13);
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(250, 204, 21, 0.55)';
+                ctx.lineWidth = 1.2;
+                ctx.stroke();
+
+                ctx.fillStyle = '#fef08a';
+                ctx.font = '700 12px "Noto Sans TC", Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(
+                    fieldDir > 0
+                        ? `外加電場 E (${absV.toFixed(1)}V) →`
+                        : `← 外加電場 E (${absV.toFixed(1)}V)`,
+                    W / 2,
+                    headerY + 0.5
+                );
+            } else {
+                const pillW = 248;
+                drawRoundedRect(ctx, W / 2 - pillW / 2, headerY - 13, pillW, 26, 13);
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(100, 116, 139, 0.45)';
+                ctx.lineWidth = 1.2;
+                ctx.stroke();
+
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '700 11.5px "Noto Sans TC", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('無外加電場 (0V) — 僅室溫熱運動', W / 2, headerY + 0.5);
+            }
+
+            // 4. 繪製所有雙線共價鍵 + 兩顆安定價電子點
+            const bondGap = 4.2;
+            const dotR = 2.9;
+
+            world.bonds.forEach(b => {
+                ctx.save();
+                ctx.strokeStyle = 'rgba(71, 85, 105, 0.85)';
+                ctx.lineWidth = 1.5;
+
+                if (b.orientation === 'h') {
+                    // 雙平行水平線
+                    ctx.beginPath();
+                    ctx.moveTo(b.x1, b.y - bondGap);
+                    ctx.lineTo(b.x2, b.y - bondGap);
+                    ctx.moveTo(b.x1, b.y + bondGap);
+                    ctx.lineTo(b.x2, b.y + bondGap);
+                    ctx.stroke();
+                } else {
+                    // 雙平行垂直線
+                    ctx.beginPath();
+                    ctx.moveTo(b.x - bondGap, b.y1);
+                    ctx.lineTo(b.x - bondGap, b.y2);
+                    ctx.moveTo(b.x + bondGap, b.y1);
+                    ctx.lineTo(b.x + bondGap, b.y2);
+                    ctx.stroke();
+                }
+
+                // 判斷該鍵是否正在有電子起跳離開
+                const outgoingHop = world.hops.find(h => h.fromBond === b);
+
+                // 繪製共價鍵上的安定價電子點
+                // 若沒有電洞且沒有起跳：畫 2 顆小而安定的價電子點
+                // 若有電洞或正在起跳：只畫剩餘的 1 顆束縛電子點，另一側空出顯示空心電洞環
+                const drawValenceDot = (px, py) => {
+                    ctx.beginPath();
+                    ctx.arc(px, py, dotR, 0, Math.PI * 2);
+                    ctx.fillStyle = '#7dd3fc';
+                    ctx.fill();
+                };
+
+                if (!b.hasHole && !outgoingHop) {
+                    if (b.orientation === 'h') {
+                        drawValenceDot(b.x - 5.5, b.y - bondGap);
+                        drawValenceDot(b.x + 5.5, b.y + bondGap);
+                    } else {
+                        drawValenceDot(b.x - bondGap, b.y - 5.5);
+                        drawValenceDot(b.x + bondGap, b.y + 5.5);
+                    }
+                } else {
+                    // 缺 1 顆電子，保留另一顆安定點在側邊
+                    if (b.orientation === 'h') {
+                        drawValenceDot(b.x, b.y + bondGap + 3.5);
+                    } else {
+                        drawValenceDot(b.x + bondGap + 3.5, b.y);
+                    }
+                }
+                ctx.restore();
+            });
+
+            // 5. 繪製晶格原子（Si / 5價 P⁺ / 3價 B⁻）
+            const R = world.atomRadius;
+            world.atoms.forEach((a, idx) => {
+                ctx.save();
+
+                // 滑鼠懸停互動高亮外環
+                if (idx === world.hoverAtomIdx) {
+                    ctx.beginPath();
+                    ctx.arc(a.x, a.y, R + 6, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(224, 242, 254, 0.85)';
+                    ctx.lineWidth = 1.8;
+                    ctx.setLineDash([4, 3]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+
+                // 剛植入時的脈衝放大光暈
+                const scaleBoost = a.pulse > 0 ? Math.sin(a.pulse * Math.PI) * 3.5 : 0;
+                const drawR = R + scaleBoost;
+
+                if (a.type === 'Si') {
+                    // 純矽 Si 原子（深灰藍圓球）
+                    const g = ctx.createRadialGradient(a.x - 6, a.y - 6, 3, a.x, a.y, drawR);
+                    g.addColorStop(0, '#475569');
+                    g.addColorStop(0.65, '#1e293b');
+                    g.addColorStop(1, '#0f172a');
+
+                    ctx.beginPath();
+                    ctx.arc(a.x, a.y, drawR, 0, Math.PI * 2);
+                    ctx.fillStyle = g;
+                    ctx.fill();
+                    ctx.strokeStyle = '#64748b';
+                    ctx.lineWidth = 1.6;
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#e2e8f0';
+                    ctx.font = '800 13px Inter, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('Si', a.x, a.y - 2);
+
+                    ctx.fillStyle = '#94a3b8';
+                    ctx.font = '600 8.5px "Noto Sans TC", sans-serif';
+                    ctx.fillText('4價', a.x, a.y + 10);
+                } else if (a.type === 'P') {
+                    // 5 價磷 P 原子（發光藍紫色 + 固定 P⁺ 徽章）
+                    const g = ctx.createRadialGradient(a.x - 6, a.y - 6, 3, a.x, a.y, drawR);
+                    g.addColorStop(0, '#818cf8');
+                    g.addColorStop(0.55, '#4f46e5');
+                    g.addColorStop(1, '#312e81');
+
+                    ctx.beginPath();
+                    ctx.arc(a.x, a.y, drawR, 0, Math.PI * 2);
+                    ctx.fillStyle = g;
+                    ctx.shadowColor = '#6366f1';
+                    ctx.shadowBlur = 14;
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+
+                    ctx.strokeStyle = '#a5b4fc';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '900 14px Inter, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('P', a.x, a.y - 2);
+
+                    ctx.fillStyle = '#c7d2fe';
+                    ctx.font = '700 9px Inter, sans-serif';
+                    ctx.fillText('+5', a.x, a.y + 10);
+
+                    // 右上角「P⁺ 固定」小徽章
+                    drawRoundedRect(ctx, a.x + 8, a.y - R - 8, 38, 15, 7.5);
+                    ctx.fillStyle = 'rgba(49, 46, 129, 0.96)';
+                    ctx.fill();
+                    ctx.strokeStyle = '#818cf8';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                    ctx.fillStyle = '#e0e7ff';
+                    ctx.font = '700 8.5px "Noto Sans TC", Inter, sans-serif';
+                    ctx.fillText('P⁺ 固定', a.x + 27, a.y - R - 0.3);
+                } else if (a.type === 'B') {
+                    // 3 價硼 B 原子（發光橘紅色 + 固定 B⁻ 徽章）
+                    const g = ctx.createRadialGradient(a.x - 6, a.y - 6, 3, a.x, a.y, drawR);
+                    g.addColorStop(0, '#fb923c');
+                    g.addColorStop(0.55, '#ea580c');
+                    g.addColorStop(1, '#7c2d12');
+
+                    ctx.beginPath();
+                    ctx.arc(a.x, a.y, drawR, 0, Math.PI * 2);
+                    ctx.fillStyle = g;
+                    ctx.shadowColor = '#f97316';
+                    ctx.shadowBlur = 14;
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+
+                    ctx.strokeStyle = '#fdba74';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '900 14px Inter, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('B', a.x, a.y - 2);
+
+                    ctx.fillStyle = '#ffedd5';
+                    ctx.font = '700 9px Inter, sans-serif';
+                    ctx.fillText('+3', a.x, a.y + 10);
+
+                    // 檢查是否目前有電洞緊鄰此硼原子；若電洞已跑開，硼原子獲電子呈 B⁻ 固定
+                    const hasAdjHole = world.bonds.some(b => (b.a1 === a || b.a2 === a) && b.hasHole);
+                    const badgeLabel = hasAdjHole ? 'B 缺電' : 'B⁻ 固定';
+                    drawRoundedRect(ctx, a.x + 8, a.y - R - 8, 38, 15, 7.5);
+                    ctx.fillStyle = 'rgba(124, 45, 18, 0.96)';
+                    ctx.fill();
+                    ctx.strokeStyle = '#fb923c';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                    ctx.fillStyle = '#ffedd5';
+                    ctx.font = '700 8.5px "Noto Sans TC", Inter, sans-serif';
+                    ctx.fillText(badgeLabel, a.x + 27, a.y - R - 0.3);
+                }
+
+                ctx.restore();
+            });
+
+            // 6. 繪製靜態與逐漸浮現的空心橘紅色電洞 (h⁺)
+            world.bonds.forEach(b => {
+                const outgoingHop = world.hops.find(h => h.fromBond === b);
+                if (b.hasHole) {
+                    drawHollowHole(ctx, b.x, b.y, 7.2, 1.0);
+                } else if (outgoingHop) {
+                    // 電子起跳離開後，原地漸漸浮現新的空心電洞
+                    drawHollowHole(ctx, b.x, b.y, 7.2, Math.min(1.0, outgoingHop.t * 1.25));
+                }
+            });
+
+            // 7. 繪製進行中的「相鄰電子拋物線跳躍填洞 (Snap & Fill)」與微觀/宏觀雙軌跡箭頭
+            world.hops.forEach(hop => {
+                const x1 = hop.fromPos.x;
+                const y1 = hop.fromPos.y;
+                const x2 = hop.toPos.x;
+                const y2 = hop.toPos.y;
+
+                // 計算拋物線控制點：向上拱起（避開下方原子文字）
+                const midX = (x1 + x2) / 2;
+                const midY = (y1 + y2) / 2;
+                const dist = Math.hypot(x2 - x1, y2 - y1);
+                const arch = Math.min(46, Math.max(26, dist * 0.42));
+                const cx = midX;
+                const cy = midY - arch;
+
+                const eased = easeSnap(Math.min(1, hop.t));
+
+                // 若開啟箭頭顯示：同步畫青藍微觀電子跳躍弧線 + 橘紅宏觀電洞位移箭頭
+                if (appState.showArrows) {
+                    drawParabolicArcArrow(ctx, x1, y1 - 4, cx, cy, x2, y2 - 7, '#38bdf8');
+
+                    // 若非電極注入，繪製反向橘紅色宏觀電洞移動箭頭（於鍵結下方呈現）
+                    if (!hop.isFromElectrode && hop.t > 0.2) {
+                        const dxVec = x1 - x2;
+                        const dyVec = y1 - y2;
+                        const len = Math.hypot(dxVec, dyVec) || 1;
+                        const pad = 13;
+                        if (len > pad * 2.2) {
+                            const sx = x2 + (dxVec / len) * pad;
+                            const sy = y2 + (dyVec / len) * pad + 12;
+                            const ex = x1 - (dxVec / len) * pad;
+                            const ey = y1 - (dyVec / len) * pad + 12;
+                            drawArrow(ctx, sx, sy, ex, ey, 'rgba(251, 146, 60, 0.88)', 2, 6, false);
+                        }
+                    }
+                }
+
+                // 飛行中的實心青藍電子
+                const pos = quadBezier(x1, y1, cx, cy, x2, y2, eased);
+                drawSolidElectron(ctx, pos.x, pos.y, 7.2, 1.0, true);
+            });
+
+            // 8. 繪製自由電子 (e⁻) 及其青色速度箭頭
+            world.freeElectrons.forEach(e => {
+                if (appState.showArrows) {
+                    const spd = Math.hypot(e.vx, e.vy);
+                    if (spd > 12) {
+                        const arrowLen = Math.min(28, 12 + spd * 0.08);
+                        const ux = e.vx / spd;
+                        const uy = e.vy / spd;
+                        drawArrow(
+                            ctx,
+                            e.x + ux * 8,
+                            e.y + uy * 8,
+                            e.x + ux * (8 + arrowLen),
+                            e.y + uy * (8 + arrowLen),
+                            hasField ? 'rgba(56, 189, 248, 0.92)' : 'rgba(125, 211, 252, 0.55)',
+                            2.0,
+                            5.8
+                        );
+                    }
+                }
+                drawSolidElectron(ctx, e.x, e.y, 7.4, 1.0, hasField);
+            });
+
+            // 9. 繪製填洞雙層發光漣漪特效
+            drawRipples(ctx, world.ripples);
+
+            // 10. 畫布底部精簡動態方向標註列
+            const footY = H - 15;
+            const counts = world.getCounts();
+            ctx.font = '700 11.5px "Noto Sans TC", Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            if (counts.electronCount === 0 && counts.holeCount === 0) {
+                ctx.fillStyle = '#94a3b8';
+                ctx.fillText('目前為純矽晶體（所有共價鍵皆完整束縛）— 點擊任意 Si 原子開始摻雜', W / 2, footY);
+            } else if (!hasField) {
+                ctx.fillStyle = '#94a3b8';
+                ctx.fillText('室溫熱運動 (0V)：載子隨機擴散，淨電流為零', W / 2, footY);
+            } else if (counts.electronCount > 0 && counts.holeCount === 0) {
+                ctx.fillStyle = '#7dd3fc';
+                ctx.fillText(
+                    fieldDir > 0
+                        ? '← 自由電子 (e⁻) 朝左側正極高速滑行 ｜ 傳統電流 I 向右 →'
+                        : '自由電子 (e⁻) 朝右側正極高速滑行 → ｜ ← 傳統電流 I 向左',
+                    W / 2,
+                    footY
+                );
+            } else if (counts.holeCount > 0 && counts.electronCount === 0) {
+                ctx.fillStyle = '#fdba74';
+                ctx.fillText(
+                    fieldDir > 0
+                        ? '← 微觀電子跳躍填洞 ｜ 宏觀電洞 (h⁺) 與電流 I 向右朝負極移動 →'
+                        : '← 宏觀電洞 (h⁺) 與電流 I 向左朝負極移動 ｜ 微觀電子跳躍填洞 →',
+                    W / 2,
+                    footY
+                );
+            } else {
+                // 自由實驗室同時存在電子與電洞
+                ctx.fillStyle = '#e2e8f0';
+                ctx.fillText(
+                    fieldDir > 0
+                        ? '← 自由電子 (e⁻) 朝左正極高速滑行 ｜ 電洞 (h⁺) 靠電子填補朝右負極慢移 →'
+                        : '← 電洞 (h⁺) 靠電子填補朝左負極慢移 ｜ 自由電子 (e⁻) 朝右正極高速滑行 →',
+                    W / 2,
+                    footY
+                );
+            }
+
+            ctx.restore();
+        }
+
+        // ============================================================================
+        // 建立三個晶格模擬實例：N 型 (4×3)、P 型 (4×3)、自由實驗室 (5×4)
+        // ============================================================================
+        const worlds = {
+            ntype: new LatticeWorld({
+                id: 'ntype',
+                cols: 4,
+                rows: 3,
+                logicalW: 560,
+                logicalH: 350,
+                atomRadius: 20,
+                elecW: 32,
+                elecPad: 10,
+                topHeaderH: 48,
+                bottomFooterH: 30,
+                allowedClickMode: 'N'
+            }),
+            ptype: new LatticeWorld({
+                id: 'ptype',
+                cols: 4,
+                rows: 3,
+                logicalW: 560,
+                logicalH: 350,
+                atomRadius: 20,
+                elecW: 32,
+                elecPad: 10,
+                topHeaderH: 48,
+                bottomFooterH: 30,
+                allowedClickMode: 'P'
+            }),
+            lab: new LatticeWorld({
+                id: 'lab',
+                cols: 5,
+                rows: 4,
+                logicalW: 920,
+                logicalH: 440,
+                atomRadius: 21,
+                elecW: 38,
+                elecPad: 14,
+                topHeaderH: 52,
+                bottomFooterH: 32,
+                allowedClickMode: 'LAB'
+            })
+        };
+
+        // 預設載入左右對比各 2 顆摻雜原子
+        function initDefaultDoping() {
+            // N 型預設植入 2 個磷 P
+            worlds.ntype.setAtomType(1, 0, 'P', false);
+            worlds.ntype.setAtomType(2, 2, 'P', false);
+
+            // P 型預設植入 2 個硼 B
+            worlds.ptype.setAtomType(1, 0, 'B', false);
+            worlds.ptype.setAtomType(2, 2, 'B', false);
+
+            // 自由實驗室預設為乾淨純矽，讓學生親自點擊植入
+            worlds.lab.resetAllToSi();
+        }
+
+        // ============================================================================
+        // 介面狀態同步更新
+        // ============================================================================
+        function updateUI() {
+            const V = appState.voltage;
+            const absV = Math.abs(V);
+            const readoutEl = document.getElementById('field-readout');
+
+            if (absV < 0.15) {
+                readoutEl.textContent = '0.0V（純熱運動）';
+                readoutEl.className = 'font-mono text-sm font-extrabold text-slate-300 min-w-[138px]';
+            } else if (V > 0) {
+                readoutEl.textContent = `+${absV.toFixed(1)}V（左 + 右 −）`;
+                readoutEl.className = 'font-mono text-sm font-extrabold text-orange-300 min-w-[138px]';
+            } else {
+                readoutEl.textContent = `−${absV.toFixed(1)}V（左 − 右 +）`;
+                readoutEl.className = 'font-mono text-sm font-extrabold text-sky-300 min-w-[138px]';
+            }
+
+            // 更新左右對比卡片徽章
+            const nc = worlds.ntype.getCounts();
+            const pc = worlds.ptype.getCounts();
+            document.getElementById('ntype-badge').textContent = `自由電子 e⁻：${nc.electronCount} ｜ P⁺ 離子：${nc.pCount}`;
+            document.getElementById('ptype-badge').textContent = `電洞 h⁺：${pc.holeCount} ｜ B⁻ 離子：${pc.bCount}`;
+
+            const nFieldEl = document.getElementById('ntype-field-state');
+            const pFieldEl = document.getElementById('ptype-field-state');
+            if (absV < 0.15) {
+                nFieldEl.textContent = nc.electronCount > 0 ? '熱運動：自由電子隨機漫遊' : '純矽狀態：無自由電子';
+                pFieldEl.textContent = pc.holeCount > 0 ? '熱運動：電洞隨機跳躍擴散' : '純矽狀態：無電洞空位';
+            } else if (V > 0) {
+                nFieldEl.textContent = nc.electronCount > 0 ? '← 電子朝左側正極高速滑行' : '請點擊 Si 植入磷原子';
+                pFieldEl.textContent = pc.holeCount > 0 ? '電子左跳填洞 → 電洞朝右負極移' : '請點擊 Si 植入硼原子';
+            } else {
+                nFieldEl.textContent = nc.electronCount > 0 ? '電子朝右側正極高速滑行 →' : '請點擊 Si 植入磷原子';
+                pFieldEl.textContent = pc.holeCount > 0 ? '← 電洞朝左負極移｜電子右跳填洞' : '請點擊 Si 植入硼原子';
+            }
+
+            // 更新自由實驗室儀表
+            const lc = worlds.lab.getCounts();
+            document.getElementById('lab-e-count').textContent = `自由電子 e⁻：${lc.electronCount} (P⁺:${lc.pCount})`;
+            document.getElementById('lab-h-count').textContent = `電洞 h⁺：${lc.holeCount} (B⁻:${lc.bCount})`;
+
+            const typePill = document.getElementById('lab-type-pill');
+            if (lc.pCount === 0 && lc.bCount === 0) {
+                typePill.textContent = '目前屬性：純質矽 (Intrinsic)';
+                typePill.className = 'px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200 border border-slate-600 font-bold';
+            } else if (lc.pCount > lc.bCount) {
+                typePill.textContent = `目前屬性：N 型半導體（P > B，電子為主）`;
+                typePill.className = 'px-2.5 py-1 rounded-lg bg-sky-950 text-sky-200 border border-sky-500/50 font-bold';
+            } else if (lc.bCount > lc.pCount) {
+                typePill.textContent = `目前屬性：P 型半導體（B > P，電洞為主）`;
+                typePill.className = 'px-2.5 py-1 rounded-lg bg-orange-950 text-orange-200 border border-orange-500/50 font-bold';
+            } else {
+                typePill.textContent = `目前屬性：補償型半導體（P = B）`;
+                typePill.className = 'px-2.5 py-1 rounded-lg bg-indigo-950 text-indigo-200 border border-indigo-400/50 font-bold';
+            }
+        }
+
+        // ============================================================================
+        // 使用者互動事件控制
+        // ============================================================================
+        function switchTab(tab) {
+            appState.activeTab = tab;
+            const viewCompare = document.getElementById('view-compare');
+            const viewLab = document.getElementById('view-lab');
+            const btnCompare = document.getElementById('tab-compare');
+            const btnLab = document.getElementById('tab-lab');
+
+            if (tab === 'compare') {
+                viewCompare.classList.remove('hidden');
+                viewLab.classList.add('hidden');
+                btnCompare.className = 'px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all bg-sky-500 text-slate-950 shadow-md shadow-sky-500/25';
+                btnLab.className = 'px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all text-slate-300 hover:text-white hover:bg-slate-800/70';
+            } else {
+                viewCompare.classList.add('hidden');
+                viewLab.classList.remove('hidden');
+                btnLab.className = 'px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all bg-indigo-500 text-white shadow-md shadow-indigo-500/30';
+                btnCompare.className = 'px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all text-slate-300 hover:text-white hover:bg-slate-800/70';
+            }
+
+            // 切換分頁後立刻重新計算可見 Canvas 的 HiDPI 尺寸
+            requestAnimationFrame(resizeAllCanvases);
+            updateUI();
+        }
+
+        function onFieldSliderInput(val) {
+            appState.voltage = parseFloat(val);
+            updateUI();
+        }
+
+        function setFieldPreset(val) {
+            appState.voltage = val;
+            document.getElementById('slider-field').value = val;
+            updateUI();
+        }
+
+        function handleToggleChange() {
+            appState.slowMo = document.getElementById('toggle-slowmo').checked;
+            appState.showArrows = document.getElementById('toggle-arrows').checked;
+        }
+
+        function togglePause() {
+            appState.isPaused = !appState.isPaused;
+            const btn = document.getElementById('btn-pause');
+            const icon = document.getElementById('pause-icon');
+            const txt = document.getElementById('pause-text');
+            if (appState.isPaused) {
+                icon.textContent = '▶';
+                txt.textContent = '繼續';
+                btn.className = 'inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/25 active:scale-95 transition';
+            } else {
+                icon.textContent = '⏸';
+                txt.textContent = '暫停';
+                btn.className = 'inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/25 active:scale-95 transition';
+            }
+        }
+
+        function selectLabTool(tool) {
+            appState.labTool = tool;
+            const btnP = document.getElementById('tool-P');
+            const btnB = document.getElementById('tool-B');
+            const btnSi = document.getElementById('tool-Si');
+
+            btnP.className = tool === 'P'
+                ? 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold border transition-all bg-sky-500 text-slate-950 border-sky-300 shadow-lg shadow-sky-500/25'
+                : 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold border transition-all bg-slate-800/90 text-sky-200 border-sky-500/35 hover:bg-sky-950/70';
+
+            btnB.className = tool === 'B'
+                ? 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold border transition-all bg-orange-500 text-slate-950 border-orange-300 shadow-lg shadow-orange-500/25'
+                : 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold border transition-all bg-slate-800/90 text-orange-200 border-orange-500/35 hover:bg-orange-950/70';
+
+            btnSi.className = tool === 'Si'
+                ? 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold border transition-all bg-slate-200 text-slate-950 border-white shadow-lg'
+                : 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold border transition-all bg-slate-800/90 text-slate-200 border-slate-600 hover:bg-slate-700';
+        }
+
+        function resetLabToPureSi() {
+            worlds.lab.resetAllToSi();
+            updateUI();
+        }
+
+        function loadLabDemo() {
+            worlds.lab.resetAllToSi();
+            worlds.lab.setAtomType(1, 0, 'P', true);
+            worlds.lab.setAtomType(3, 1, 'P', true);
+            worlds.lab.setAtomType(1, 2, 'B', true);
+            worlds.lab.setAtomType(3, 3, 'B', true);
+            updateUI();
+        }
+
+        // ============================================================================
+        // Retina / HiDPI Canvas 尺寸管理與精準點擊綁定
+        // ============================================================================
+        const canvasMap = {
+            ntype: { el: document.getElementById('canvas-ntype'), world: worlds.ntype },
+            ptype: { el: document.getElementById('canvas-ptype'), world: worlds.ptype },
+            lab:   { el: document.getElementById('canvas-lab'),   world: worlds.lab }
+        };
+
+        Object.values(canvasMap).forEach(entry => {
+            entry.ctx = entry.el.getContext('2d');
+            const toLogical = (clientX, clientY) => {
+                const rect = entry.el.getBoundingClientRect();
+                return {
+                    lx: (clientX - rect.left) * (entry.world.logicalW / rect.width),
+                    ly: (clientY - rect.top) * (entry.world.logicalH / rect.height)
+                };
+            };
+
+            // 滑鼠移動懸停高亮
+            entry.el.addEventListener('mousemove', (ev) => {
+                const { lx, ly } = toLogical(ev.clientX, ev.clientY);
+                const hit = entry.world.hitTestAtom(lx, ly);
+                entry.world.hoverAtomIdx = hit;
+                entry.el.style.cursor = hit !== -1 ? 'pointer' : 'default';
+            });
+
+            entry.el.addEventListener('mouseleave', () => {
+                entry.world.hoverAtomIdx = -1;
+                entry.el.style.cursor = 'default';
+            });
+
+            // 滑鼠與觸控點擊切換摻雜
+            entry.el.addEventListener('click', (ev) => {
+                const { lx, ly } = toLogical(ev.clientX, ev.clientY);
+                if (entry.world.handleClick(lx, ly)) {
+                    updateUI();
+                }
+            });
+        });
+
+        function resizeAllCanvases() {
+            const dpr = window.devicePixelRatio || 1;
+            Object.values(canvasMap).forEach(({ el, ctx, world }) => {
+                const rect = el.getBoundingClientRect();
+                if (rect.width === 0 || rect.height === 0) return;
+                el.width = Math.round(rect.width * dpr);
+                el.height = Math.round(rect.height * dpr);
+                ctx.setTransform(
+                    (rect.width * dpr) / world.logicalW, 0,
+                    0, (rect.height * dpr) / world.logicalH,
+                    0, 0
+                );
+            });
+        }
+
+        // ============================================================================
+        // 60fps 主動畫迴圈
+        // ============================================================================
+        let lastFrameTime = performance.now();
+
+        function animateLoop(now) {
+            try {
+                const rawDt = Math.min(0.05, (now - lastFrameTime) / 1000);
+                lastFrameTime = now;
+
+                const simDt = appState.isPaused ? 0 : rawDt * (appState.slowMo ? 0.3 : 1.0);
+                appState.simTime += simDt;
+
+                if (appState.activeTab === 'compare') {
+                    if (simDt > 0) {
+                        worlds.ntype.update(simDt);
+                        worlds.ptype.update(simDt);
+                    }
+                    renderWorld(canvasMap.ntype.ctx, worlds.ntype);
+                    renderWorld(canvasMap.ptype.ctx, worlds.ptype);
+                } else {
+                    if (simDt > 0) {
+                        worlds.lab.update(simDt);
+                    }
+                    renderWorld(canvasMap.lab.ctx, worlds.lab);
+                }
+            } catch (err) {
+                console.error('Simulation loop error:', err);
+            }
+
+            requestAnimationFrame(animateLoop);
+        }
+
+        window.addEventListener('resize', resizeAllCanvases);
+
+        window.onload = function () {
+            initDefaultDoping();
+            resizeAllCanvases();
+            updateUI();
+            lastFrameTime = performance.now();
+            requestAnimationFrame(animateLoop);
+        };
+    </script>
+</body>
+</html>
