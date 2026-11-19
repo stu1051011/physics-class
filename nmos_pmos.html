@@ -1,0 +1,1921 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NMOS 與 PMOS 閘極電壓導通模擬 — 微觀「電子填入電洞」動態視覺化</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Inter 與 Noto Sans TC 字體 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: #0b1120;
+            color: #e2e8f0;
+        }
+
+        /* 深色科技實驗室網格背景 */
+        .lab-grid {
+            background-image:
+                linear-gradient(to right, rgba(56, 189, 248, 0.04) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(56, 189, 248, 0.04) 1px, transparent 1px);
+            background-size: 28px 28px;
+        }
+
+        /* 自訂範圍滑桿樣式 */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            border-radius: 999px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .slider-master {
+            background: linear-gradient(90deg, #1e293b 0%, #6366f1 100%);
+        }
+        .slider-master::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #a5b4fc;
+            border: 2px solid #4f46e5;
+            box-shadow: 0 0 12px rgba(99, 102, 241, 0.85);
+            transition: transform 0.15s ease;
+        }
+        .slider-master::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+        }
+
+        .slider-nmos {
+            background: linear-gradient(90deg, #1e293b 0%, #0284c7 100%);
+        }
+        .slider-nmos::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 19px;
+            height: 19px;
+            border-radius: 50%;
+            background: #38bdf8;
+            border: 2px solid #e0f2fe;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.85);
+            transition: transform 0.15s ease;
+        }
+        .slider-nmos::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+        }
+
+        .slider-pmos {
+            background: linear-gradient(90deg, #1e293b 0%, #ea580c 100%);
+        }
+        .slider-pmos::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 19px;
+            height: 19px;
+            border-radius: 50%;
+            background: #fb923c;
+            border: 2px solid #ffedd5;
+            box-shadow: 0 0 12px rgba(251, 146, 60, 0.85);
+            transition: transform 0.15s ease;
+        }
+        .slider-pmos::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+        }
+
+        .toggle-track {
+            transition: background-color 0.2s ease;
+        }
+        .toggle-dot {
+            transition: transform 0.2s ease;
+        }
+
+        /* 放大鏡區連接指示微光 */
+        .zoom-connector {
+            background: linear-gradient(180deg, rgba(56, 189, 248, 0.28) 0%, rgba(17, 24, 39, 0) 100%);
+        }
+        .zoom-connector-orange {
+            background: linear-gradient(180deg, rgba(251, 146, 60, 0.28) 0%, rgba(17, 24, 39, 0) 100%);
+        }
+    </style>
+</head>
+<body class="min-h-screen lab-grid flex flex-col selection:bg-sky-500/30">
+
+    <!-- 頂部標題列 -->
+    <header class="w-full border-b border-[#1e293b] bg-[#0b1120]/90 backdrop-blur-md sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+            <div class="flex items-center gap-3.5">
+                <!-- 專屬載子填入圖示 -->
+                <div class="w-11 h-11 rounded-xl bg-[#111827] border border-[#1e293b] flex items-center justify-center shadow-lg shrink-0 relative overflow-hidden">
+                    <span class="w-5 h-5 rounded-full border-2 border-dashed border-orange-400 shadow-[0_0_8px_#fb923c] absolute right-1.5"></span>
+                    <span class="w-3.5 h-3.5 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8] absolute left-2"></span>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-xl font-extrabold tracking-tight text-white">
+                        NMOS 與 PMOS 閘極電壓導通模擬 — 微觀「電子填入電洞」動態視覺化
+                    </h1>
+                    <p class="text-xs sm:text-sm text-slate-400 mt-0.5">
+                        觀察閘極電壓如何驅動電子填補電洞、形成通道與導電
+                    </p>
+                </div>
+            </div>
+
+            <!-- 快捷圖例提示 -->
+            <div class="flex flex-wrap items-center gap-3 text-xs bg-[#111827] px-3.5 py-2 rounded-xl border border-[#1e293b]">
+                <div class="flex items-center gap-1.5">
+                    <span class="w-3.5 h-3.5 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8] flex items-center justify-center text-[10px] font-black text-slate-950">−</span>
+                    <span class="text-slate-200 font-medium">電子 (e⁻)</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-4 h-4 rounded-full border-2 border-orange-400 border-dashed shadow-[0_0_8px_#fb923c] flex items-center justify-center text-[10px] font-black text-orange-300">+</span>
+                    <span class="text-slate-200 font-medium">電洞空位 (h⁺)</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="w-3.5 h-3.5 rounded-full border-2 border-cyan-300 bg-amber-300/30 shadow-[0_0_10px_#fde047]"></span>
+                    <span class="text-slate-200 font-medium">填入漣漪閃光</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主內容區 -->
+    <main class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 py-5 flex flex-col gap-5">
+
+        <!-- 1. 頂部控制列 -->
+        <section class="rounded-2xl bg-[#111827] border border-[#1e293b] p-4 shadow-xl flex flex-col gap-4">
+            <!-- 控制開關與課堂預設按鈕 -->
+            <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-3.5">
+                <!-- 四大教學控制開關 -->
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <!-- 同步調整偏壓 -->
+                    <label class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-[#0b1120] border border-[#1e293b] cursor-pointer select-none hover:border-indigo-500/60 transition">
+                        <input type="checkbox" id="toggle-sync" checked onchange="handleToggleChange()" class="sr-only peer">
+                        <div class="w-9 h-5 bg-slate-700 rounded-full peer peer-checked:bg-indigo-500 relative toggle-track">
+                            <div class="w-3.5 h-3.5 bg-white rounded-full absolute top-[3px] left-[3px] peer-checked:translate-x-4 toggle-dot shadow"></div>
+                        </div>
+                        <span class="text-xs sm:text-sm font-semibold text-slate-200">同步調整偏壓</span>
+                    </label>
+
+                    <!-- 施加 V_DS 導通流動 -->
+                    <label class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-[#0b1120] border border-[#1e293b] cursor-pointer select-none hover:border-emerald-500/60 transition">
+                        <input type="checkbox" id="toggle-vds" checked onchange="handleToggleChange()" class="sr-only peer">
+                        <div class="w-9 h-5 bg-slate-700 rounded-full peer peer-checked:bg-emerald-500 relative toggle-track">
+                            <div class="w-3.5 h-3.5 bg-white rounded-full absolute top-[3px] left-[3px] peer-checked:translate-x-4 toggle-dot shadow"></div>
+                        </div>
+                        <span class="text-xs sm:text-sm font-semibold text-slate-200">施加 V<sub>DS</sub> 導通流動</span>
+                    </label>
+
+                    <!-- 慢動作觀察填洞 (0.3x) -->
+                    <label class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-[#0b1120] border border-[#1e293b] cursor-pointer select-none hover:border-amber-500/60 transition">
+                        <input type="checkbox" id="toggle-slowmo" onchange="handleToggleChange()" class="sr-only peer">
+                        <div class="w-9 h-5 bg-slate-700 rounded-full peer peer-checked:bg-amber-500 relative toggle-track">
+                            <div class="w-3.5 h-3.5 bg-white rounded-full absolute top-[3px] left-[3px] peer-checked:translate-x-4 toggle-dot shadow"></div>
+                        </div>
+                        <span class="text-xs sm:text-sm font-semibold text-amber-200">慢動作觀察填洞 (0.3x)</span>
+                    </label>
+
+                    <!-- 顯示微觀移動軌跡箭頭 -->
+                    <label class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-[#0b1120] border border-[#1e293b] cursor-pointer select-none hover:border-sky-500/60 transition">
+                        <input type="checkbox" id="toggle-arrows" checked onchange="handleToggleChange()" class="sr-only peer">
+                        <div class="w-9 h-5 bg-slate-700 rounded-full peer peer-checked:bg-sky-500 relative toggle-track">
+                            <div class="w-3.5 h-3.5 bg-white rounded-full absolute top-[3px] left-[3px] peer-checked:translate-x-4 toggle-dot shadow"></div>
+                        </div>
+                        <span class="text-xs sm:text-sm font-semibold text-slate-200">顯示微觀移動軌跡箭頭</span>
+                    </label>
+                </div>
+
+                <!-- 快速教學預設按鈕 -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <button onclick="applyPreset(0.0)" class="px-3 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 active:scale-95 transition">
+                        關閉 (0V)
+                    </button>
+                    <button onclick="applyPreset(1.0)" class="px-3 py-2 rounded-xl text-xs font-bold bg-amber-950/80 hover:bg-amber-900/80 text-amber-200 border border-amber-500/40 active:scale-95 transition">
+                        空乏／填洞過程 (1.0V)
+                    </button>
+                    <button onclick="applyPreset(1.8)" class="px-3 py-2 rounded-xl text-xs font-bold bg-sky-950/80 hover:bg-sky-900/80 text-sky-200 border border-sky-500/40 active:scale-95 transition">
+                        臨界導通 (1.8V)
+                    </button>
+                    <button onclick="applyPreset(4.5)" class="px-3 py-2 rounded-xl text-xs font-bold bg-indigo-950/90 hover:bg-indigo-900/90 text-indigo-200 border border-indigo-400/50 active:scale-95 transition">
+                        強反轉導通 (4.5V)
+                    </button>
+                </div>
+            </div>
+
+            <!-- 同步主控滑桿列 -->
+            <div id="master-slider-container" class="pt-3 border-t border-[#1e293b] flex flex-col sm:flex-row items-center gap-3 sm:gap-5 transition-opacity">
+                <div class="flex items-center gap-2 shrink-0">
+                    <span class="px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 text-xs font-bold">同步主控</span>
+                    <span class="text-xs sm:text-sm font-bold text-slate-200">閘極偏壓 |V<sub>G</sub>|：</span>
+                    <span id="master-vg-val" class="font-mono text-base font-extrabold text-indigo-300 w-12">1.0V</span>
+                </div>
+                <div class="flex-1 w-full flex items-center gap-3 pb-2.5 sm:pb-0">
+                    <span class="text-xs font-mono text-slate-400">0.0V</span>
+                    <div class="relative flex-1 flex items-center">
+                        <input type="range" id="slider-master" min="0" max="5" step="0.1" value="1.0" oninput="onMasterSliderInput(this.value)" class="w-full slider-master">
+                        <div class="absolute left-[30%] -bottom-4 -translate-x-1/2 text-[10px] font-mono text-amber-400 font-bold pointer-events-none select-none">
+                            ▲ |V<sub>th</sub>|=1.5V
+                        </div>
+                    </div>
+                    <span class="text-xs font-mono text-slate-400">5.0V</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. 左右並列雙視窗（NMOS 在左，PMOS 在右） -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            <!-- ==================== 左側：NMOS ==================== -->
+            <article class="rounded-2xl bg-[#111827] border border-sky-500/35 shadow-2xl shadow-black/50 overflow-hidden flex flex-col">
+                <!-- 標題與狀態列 -->
+                <div class="px-5 py-3 bg-gradient-to-r from-sky-950/60 to-[#111827] border-b border-[#1e293b] flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8]"></span>
+                        <h2 class="text-base sm:text-lg font-extrabold text-sky-100">N 型場效電晶體 (NMOS)</h2>
+                    </div>
+                    <span id="nmos-status-badge" class="px-3 py-1 rounded-full text-xs font-bold border transition-all">
+                        空乏與填洞階段
+                    </span>
+                </div>
+
+                <!-- 獨立滑桿控制 -->
+                <div class="px-5 py-2.5 bg-[#0b1120]/70 border-b border-[#1e293b] flex flex-col gap-1.5">
+                    <div class="flex items-center justify-between">
+                        <label for="slider-nmos" class="text-xs font-semibold text-sky-300">
+                            正向閘極電壓 V<sub>G</sub>（V<sub>th</sub> = +1.5V）
+                        </label>
+                        <span id="nmos-vg-val" class="font-mono text-sm font-extrabold text-sky-400 bg-sky-950/80 px-2.5 py-0.5 rounded-lg border border-sky-500/30">
+                            +1.0 V
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-3 pb-2">
+                        <span class="text-[11px] font-mono text-slate-400">0.0V</span>
+                        <div class="relative flex-1 flex items-center">
+                            <input type="range" id="slider-nmos" min="0" max="5" step="0.1" value="1.0" oninput="onNmosSliderInput(this.value)" class="w-full slider-nmos">
+                            <div class="absolute left-[30%] -bottom-3.5 -translate-x-1/2 text-[9px] font-mono text-sky-300/80 pointer-events-none">V<sub>th</sub></div>
+                        </div>
+                        <span class="text-[11px] font-mono text-sky-300">+5.0V</span>
+                    </div>
+                </div>
+
+                <!-- 剖面結構 60fps Canvas -->
+                <div class="relative w-full bg-[#0b1120] p-2 sm:p-2.5">
+                    <div class="w-full aspect-[16/10] relative">
+                        <canvas id="canvas-nmos" class="w-full h-full block rounded-xl"></canvas>
+                    </div>
+                </div>
+
+                <!-- 微觀放大鏡連接條 -->
+                <div class="px-4 py-1.5 bg-sky-950/30 border-y border-sky-500/25 flex items-center justify-between">
+                    <div class="flex items-center gap-2 text-xs font-bold text-sky-300">
+                        <span>🔍 通道表面微觀放大鏡（閘極正下方 9 個矽晶格節點）</span>
+                    </div>
+                    <span id="nmos-zoom-tag" class="text-[11px] font-mono text-amber-300 font-semibold">
+                        電子填補空心電洞中
+                    </span>
+                </div>
+
+                <!-- NMOS 微觀表面晶格放大鏡 Canvas -->
+                <div class="w-full bg-[#090f1d] p-2 sm:p-2.5 zoom-connector">
+                    <div class="w-full h-[132px] sm:h-[144px] relative">
+                        <canvas id="zoom-nmos" class="w-full h-full block rounded-xl border border-sky-500/20 bg-[#0b1120]/90"></canvas>
+                    </div>
+                </div>
+            </article>
+
+            <!-- ==================== 右側：PMOS ==================== -->
+            <article class="rounded-2xl bg-[#111827] border border-orange-500/35 shadow-2xl shadow-black/50 overflow-hidden flex flex-col">
+                <!-- 標題與狀態列 -->
+                <div class="px-5 py-3 bg-gradient-to-r from-orange-950/60 to-[#111827] border-b border-[#1e293b] flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-orange-400 shadow-[0_0_8px_#fb923c]"></span>
+                        <h2 class="text-base sm:text-lg font-extrabold text-orange-100">P 型場效電晶體 (PMOS)</h2>
+                    </div>
+                    <span id="pmos-status-badge" class="px-3 py-1 rounded-full text-xs font-bold border transition-all">
+                        空乏階段
+                    </span>
+                </div>
+
+                <!-- 獨立滑桿控制 -->
+                <div class="px-5 py-2.5 bg-[#0b1120]/70 border-b border-[#1e293b] flex flex-col gap-1.5">
+                    <div class="flex items-center justify-between">
+                        <label for="slider-pmos" class="text-xs font-semibold text-orange-300">
+                            負向閘極電壓 V<sub>G</sub>（V<sub>th</sub> = -1.5V）
+                        </label>
+                        <span id="pmos-vg-val" class="font-mono text-sm font-extrabold text-orange-400 bg-orange-950/80 px-2.5 py-0.5 rounded-lg border border-orange-500/30">
+                            -1.0 V
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-3 pb-2">
+                        <span class="text-[11px] font-mono text-slate-400">0.0V</span>
+                        <div class="relative flex-1 flex items-center">
+                            <input type="range" id="slider-pmos" min="0" max="5" step="0.1" value="1.0" oninput="onPmosSliderInput(this.value)" class="w-full slider-pmos">
+                            <div class="absolute left-[30%] -bottom-3.5 -translate-x-1/2 text-[9px] font-mono text-orange-300/80 pointer-events-none">V<sub>th</sub></div>
+                        </div>
+                        <span class="text-[11px] font-mono text-orange-300">-5.0V</span>
+                    </div>
+                </div>
+
+                <!-- 剖面結構 60fps Canvas -->
+                <div class="relative w-full bg-[#0b1120] p-2 sm:p-2.5">
+                    <div class="w-full aspect-[16/10] relative">
+                        <canvas id="canvas-pmos" class="w-full h-full block rounded-xl"></canvas>
+                    </div>
+                </div>
+
+                <!-- 微觀放大鏡連接條 -->
+                <div class="px-4 py-1.5 bg-orange-950/30 border-y border-orange-500/25 flex items-center justify-between">
+                    <div class="flex items-center gap-2 text-xs font-bold text-orange-300">
+                        <span>🔍 通道表面微觀放大鏡（閘極正下方 9 個矽晶格節點）</span>
+                    </div>
+                    <span id="pmos-zoom-tag" class="text-[11px] font-mono text-amber-300 font-semibold">
+                        表面電子受排斥離開
+                    </span>
+                </div>
+
+                <!-- PMOS 微觀表面晶格放大鏡 Canvas -->
+                <div class="w-full bg-[#090f1d] p-2 sm:p-2.5 zoom-connector-orange">
+                    <div class="w-full h-[132px] sm:h-[144px] relative">
+                        <canvas id="zoom-pmos" class="w-full h-full block rounded-xl border border-orange-500/20 bg-[#0b1120]/90"></canvas>
+                    </div>
+                </div>
+            </article>
+
+        </section>
+
+        <!-- 3. 底部即時狀態解說與視覺圖例區 -->
+        <section class="rounded-2xl bg-[#111827] border border-[#1e293b] p-4 sm:p-5 shadow-xl flex flex-col gap-4">
+            <!-- 即時物理解說雙欄 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- NMOS 解說 -->
+                <div class="rounded-xl bg-[#0b1120] border border-sky-500/25 p-4 flex flex-col justify-between gap-2">
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-xs font-extrabold uppercase tracking-wider text-sky-400">NMOS 即時微觀解說</span>
+                            <span id="nmos-phase-pill" class="text-[11px] font-mono px-2 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-700/50">空乏／填洞</span>
+                        </div>
+                        <p id="nmos-explanation" class="text-xs sm:text-sm text-slate-200 leading-relaxed"></p>
+                    </div>
+                    <div id="nmos-tip" class="pt-2 border-t border-[#1e293b] text-xs text-sky-300/90 font-medium"></div>
+                </div>
+
+                <!-- PMOS 解說 -->
+                <div class="rounded-xl bg-[#0b1120] border border-orange-500/25 p-4 flex flex-col justify-between gap-2">
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-xs font-extrabold uppercase tracking-wider text-orange-400">PMOS 即時微觀解說</span>
+                            <span id="pmos-phase-pill" class="text-[11px] font-mono px-2 py-0.5 rounded bg-orange-950 text-orange-300 border border-orange-700/50">空乏階段</span>
+                        </div>
+                        <p id="pmos-explanation" class="text-xs sm:text-sm text-slate-200 leading-relaxed"></p>
+                    </div>
+                    <div id="pmos-tip" class="pt-2 border-t border-[#1e293b] text-xs text-orange-300/90 font-medium"></div>
+                </div>
+            </div>
+
+            <!-- 載子視覺圖例與物理意義列 -->
+            <div class="pt-3 border-t border-[#1e293b] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                <div class="flex items-center gap-3 bg-[#0b1120]/80 px-3 py-2.5 rounded-xl border border-[#1e293b]">
+                    <span class="w-6 h-6 rounded-full bg-gradient-to-br from-sky-200 via-sky-400 to-sky-600 shadow-[0_0_10px_#38bdf8] flex items-center justify-center text-slate-950 font-black text-sm shrink-0">−</span>
+                    <div>
+                        <div class="font-bold text-sky-300">實心青藍球 ＝ 電子 (e⁻)</div>
+                        <div class="text-slate-400 text-[11px]">實際移動的帶負電粒子，尺寸剛好能卡入電洞</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 bg-[#0b1120]/80 px-3 py-2.5 rounded-xl border border-[#1e293b]">
+                    <span class="w-6 h-6 rounded-full border-2 border-orange-400 border-dashed bg-orange-500/10 shadow-[0_0_10px_#fb923c] flex items-center justify-center text-orange-300 font-black text-sm shrink-0">+</span>
+                    <div>
+                        <div class="font-bold text-orange-300">空心橘紅環 ＝ 電洞 (h⁺)</div>
+                        <div class="text-slate-400 text-[11px]">共價鍵缺少電子留下的空位，呈現等效正電</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 bg-[#0b1120]/80 px-3 py-2.5 rounded-xl border border-[#1e293b]">
+                    <span class="w-6 h-6 rounded-full border-2 border-cyan-300 bg-amber-300/25 shadow-[0_0_12px_#fde047] flex items-center justify-center text-amber-200 font-bold text-xs shrink-0">✦</span>
+                    <div>
+                        <div class="font-bold text-amber-200">發光漣漪 ＝ 填入瞬間</div>
+                        <div class="text-slate-400 text-[11px]">電子精準卡進空心電洞，觸發「咔！」填滿中和</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 bg-[#0b1120]/80 px-3 py-2.5 rounded-xl border border-[#1e293b]">
+                    <span class="w-6 h-6 rounded-full bg-slate-800 border border-slate-600 flex items-center justify-center text-slate-400 font-bold text-[10px] shrink-0">中性</span>
+                    <div>
+                        <div class="font-bold text-slate-300">暗灰點 ＝ 電中性共價鍵</div>
+                        <div class="text-slate-400 text-[11px]">電洞被電子填滿後，該處恢復完整電中性</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="w-full py-3 text-center text-xs text-slate-500 border-t border-[#1e293b]">
+        半導體物理互動教學模擬 ｜ 建議切換「1.0V 空乏填洞」與「4.5V 強反轉導通」並開啟「0.3x 慢動作」，細看電子如何精準卡入電洞！
+    </footer>
+
+    <script>
+        /**
+         * ============================================================================
+         * NMOS & PMOS 微觀「電子填入電洞 (Snap & Fill)」60fps 動態模擬引擎
+         * - 剖面圖邏輯尺寸：560 x 350
+         * - 微觀放大鏡邏輯尺寸：560 x 140（9 個矽晶格節點）
+         * ============================================================================
+         */
+
+        const V_TH = 1.5;
+        const MAX_VG = 5.0;
+
+        const CROSS_W = 560;
+        const CROSS_H = 350;
+        const ZOOM_W = 560;
+        const ZOOM_H = 140;
+        const ZOOM_NODES = 9;
+
+        // 剖面幾何座標
+        const GEO = {
+            subX: 28,
+            subY: 118,
+            subW: 504,
+            subH: 204,
+            gateX: 160,
+            gateY: 54,
+            gateW: 240,
+            gateH: 38,
+            oxY: 92,
+            oxH: 26,
+            wellW: 120,
+            wellH: 86,
+            srcX: 52,
+            drnX: 388,
+            chLeft: 172,
+            chRight: 388
+        };
+
+        // 預設開啟在 1.0V（方便一進來就看到「空乏／電子填洞」的動態），或可隨時一鍵切換
+        const state = {
+            nmosVg: 1.0,       // 0.0 ~ +5.0V
+            pmosVg: -1.0,      // 0.0 ~ -5.0V
+            syncMode: true,
+            vdsOn: true,
+            slowMo: false,
+            showArrows: true,
+            simTime: 0
+        };
+
+        // 緩動函式：帶微幅卡扣感 (EaseInOutQuad + 尾端俐落定位)
+        function easeSnap(t) {
+            if (t < 0.5) return 2 * t * t;
+            return 1 - Math.pow(-2 * t + 2, 2) / 2;
+        }
+
+        // ============================================================================
+        // 粒子、填洞動畫與漣漪系統資料
+        // ============================================================================
+        const simData = {
+            // 基板背景多數載子
+            nmosSubstrateHoles: [],
+            pmosSubstrateElectrons: [],
+
+            // NMOS 剖面通道：
+            // 1) 空乏填洞階段：固定的表面電洞槽位 (7 個) + 飛入填洞的電子動畫
+            nmosSurfaceSlots: [],
+            nmosFillEvents: [],    // { slotIdx, startX, startY, targetX, targetY, t, duration }
+            nmosFillCooldown: 0,
+            // 2) 導通階段：自由流動的通道電子
+            nmosChannelElectrons: [],
+
+            // PMOS 剖面通道：
+            // 導通時使用 8 個離散槽位呈現「電子向右向左跳入填洞 -> 電洞向右前進」
+            pmosChannelSlots: [],  // true = 電洞, false = 電子
+            pmosRelayHops: [],     // { fromSlot, toSlot, t, duration }
+            pmosRelayTimer: 0,
+
+            // 剖面漣漪特效列表
+            nmosRipples: [],       // { x, y, t, maxR }
+            pmosRipples: [],
+
+            // ================= 微觀表面晶格放大鏡狀態 =================
+            // NMOS 9 個晶格節點
+            zoomNmos: {
+                // 節點狀態：'hole' | 'neutral'
+                nodes: Array(ZOOM_NODES).fill('hole'),
+                fillAnims: [],     // { nodeIdx, startX, startY, t, duration }
+                fillTimer: 0,
+                freeElectrons: [], // 導通時的自由電子
+                ripples: []
+            },
+
+            // PMOS 9 個晶格節點
+            zoomPmos: {
+                // 節點狀態：'electron' | 'hole' | 'depleted'
+                nodes: Array(ZOOM_NODES).fill('electron'),
+                relayHops: [],     // { fromIdx, toIdx, t, duration } (電子從 fromIdx 跳到左邊 toIdx 填洞)
+                relayTimer: 0,
+                ripples: []
+            }
+        };
+
+        // 取得放大鏡第 i 個節點的 X 座標 (0 ~ 8)
+        function getZoomNodeX(i) {
+            const margin = 56;
+            const span = ZOOM_W - margin * 2;
+            return margin + (i / (ZOOM_NODES - 1)) * span;
+        }
+
+        // 初始化所有模擬粒子與槽位
+        function initSimData() {
+            // 1. NMOS P型基板多數載子（空心電洞）
+            simData.nmosSubstrateHoles = [];
+            for (let i = 0; i < 36; i++) {
+                let bx, by;
+                if (i < 16) {
+                    bx = GEO.chLeft + 8 + Math.random() * (GEO.chRight - GEO.chLeft - 16);
+                    by = GEO.subY + 18 + Math.random() * 105;
+                } else {
+                    bx = GEO.subX + 20 + Math.random() * (GEO.subW - 40);
+                    by = GEO.subY + 102 + Math.random() * (GEO.subH - 122);
+                }
+                simData.nmosSubstrateHoles.push({
+                    baseX: bx, baseY: by,
+                    phase: Math.random() * Math.PI * 2,
+                    speed: 1.2 + Math.random() * 1.2
+                });
+            }
+
+            // 2. PMOS N型基板多數載子（實心電子）
+            simData.pmosSubstrateElectrons = [];
+            for (let i = 0; i < 36; i++) {
+                let bx, by;
+                if (i < 16) {
+                    bx = GEO.chLeft + 8 + Math.random() * (GEO.chRight - GEO.chLeft - 16);
+                    by = GEO.subY + 18 + Math.random() * 105;
+                } else {
+                    bx = GEO.subX + 20 + Math.random() * (GEO.subW - 40);
+                    by = GEO.subY + 102 + Math.random() * (GEO.subH - 122);
+                }
+                simData.pmosSubstrateElectrons.push({
+                    baseX: bx, baseY: by,
+                    phase: Math.random() * Math.PI * 2,
+                    speed: 1.2 + Math.random() * 1.2
+                });
+            }
+
+            // 3. NMOS 表面 7 個填洞觀察槽位（位於 SiO2 正下方）
+            simData.nmosSurfaceSlots = [];
+            for (let i = 0; i < 7; i++) {
+                const x = GEO.chLeft + 18 + (i / 6) * (GEO.chRight - GEO.chLeft - 36);
+                const y = GEO.subY + 16 + (i % 2 === 0 ? 0 : 12);
+                simData.nmosSurfaceSlots.push({
+                    x, y,
+                    filled: false,
+                    neutralAlpha: 0
+                });
+            }
+
+            // 4. NMOS 導通時自由電子
+            simData.nmosChannelElectrons = [];
+            for (let i = 0; i < 32; i++) {
+                simData.nmosChannelElectrons.push({
+                    u: Math.random(),
+                    v: 0.16 + Math.random() * 0.7,
+                    phase: Math.random() * Math.PI * 2
+                });
+            }
+
+            // 5. PMOS 剖面通道 8 個離散接力槽位 (用於呈現電子向左跳填洞、電洞向右走)
+            simData.pmosChannelSlots = [false, true, false, false, true, false, false, false];
+
+            // 6. NMOS 放大鏡自由電子
+            simData.zoomNmos.freeElectrons = [];
+            for (let i = 0; i < 11; i++) {
+                simData.zoomNmos.freeElectrons.push({
+                    u: i / 11 + Math.random() * 0.04,
+                    lane: (i % 2 === 0) ? -1 : 1,
+                    phase: Math.random() * Math.PI * 2
+                });
+            }
+
+            // 7. PMOS 放大鏡初始 9 個節點（含 2 個電洞）
+            simData.zoomPmos.nodes = ['electron', 'hole', 'electron', 'electron', 'electron', 'hole', 'electron', 'electron', 'electron'];
+        }
+
+        // ============================================================================
+        // 共用高質感載子與特效繪圖函式 (Snap & Fill 核心美學)
+        // ============================================================================
+
+        function drawRoundedRect(ctx, x, y, w, h, r) {
+            const rad = typeof r === 'number' ? { tl: r, tr: r, br: r, bl: r } : r;
+            ctx.beginPath();
+            ctx.moveTo(x + rad.tl, y);
+            ctx.lineTo(x + w - rad.tr, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + rad.tr);
+            ctx.lineTo(x + w, y + h - rad.br);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - rad.br, y + h);
+            ctx.lineTo(x + rad.bl, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - rad.bl);
+            ctx.lineTo(x, y + rad.tl);
+            ctx.quadraticCurveTo(x, y, x + rad.tl, y);
+            ctx.closePath();
+        }
+
+        /**
+         * 繪製【空心發光橘紅色電洞圓環 (h+)】
+         * 內徑設計剛好與實心電子球吻合，呈現「等待被填入的空位／凹槽」直覺
+         */
+        function drawHollowHole(ctx, x, y, innerR = 6.5, alpha = 1.0) {
+            ctx.save();
+            ctx.globalAlpha = alpha;
+
+            // 深色凹槽底（強化空位深度感）
+            ctx.beginPath();
+            ctx.arc(x, y, innerR + 1.2, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(251, 146, 60, 0.12)';
+            ctx.fill();
+
+            // 外圈實線發光橘紅環
+            ctx.beginPath();
+            ctx.arc(x, y, innerR + 2.4, 0, Math.PI * 2);
+            ctx.strokeStyle = '#fb923c';
+            ctx.lineWidth = 2.2;
+            ctx.shadowColor = '#f97316';
+            ctx.shadowBlur = 9;
+            ctx.stroke();
+
+            // 內圈微弱旋轉虛線（提示可填入的空缺感）
+            ctx.shadowBlur = 0;
+            ctx.beginPath();
+            ctx.arc(x, y, innerR - 0.5, state.simTime * 0.8, state.simTime * 0.8 + Math.PI * 2);
+            ctx.setLineDash([3, 3]);
+            ctx.strokeStyle = 'rgba(254, 215, 170, 0.65)';
+            ctx.lineWidth = 1.1;
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 中心 + 號
+            ctx.fillStyle = '#fdba74';
+            ctx.font = `900 ${Math.round(innerR * 1.45)}px Inter, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('+', x, y + 0.5);
+
+            ctx.restore();
+        }
+
+        /**
+         * 繪製【實心發光青藍色電子圓球 (e-)】
+         * 半徑 = innerR，與電洞圓環內徑精準吻合
+         */
+        function drawSolidElectron(ctx, x, y, radius = 6.5, alpha = 1.0, highlight = false) {
+            ctx.save();
+            ctx.globalAlpha = alpha;
+
+            // 球體立體漸層
+            const grad = ctx.createRadialGradient(
+                x - radius * 0.32, y - radius * 0.32, radius * 0.15,
+                x, y, radius
+            );
+            grad.addColorStop(0, '#e0f2fe');
+            grad.addColorStop(0.45, '#38bdf8');
+            grad.addColorStop(1, '#0284c7');
+
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.shadowColor = highlight ? '#7dd3fc' : '#0ea5e9';
+            ctx.shadowBlur = highlight ? 14 : 8;
+            ctx.fill();
+
+            // 中心 - 號
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#082f49';
+            ctx.font = `900 ${Math.round(radius * 1.55)}px Inter, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('−', x, y + 0.5);
+
+            ctx.restore();
+        }
+
+        /**
+         * 繪製【已填滿電中性點】
+         */
+        function drawNeutralSite(ctx, x, y, radius = 6.5, showLabel = false) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(x, y, radius + 1.5, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(30, 41, 59, 0.9)';
+            ctx.strokeStyle = 'rgba(100, 116, 139, 0.55)';
+            ctx.lineWidth = 1.4;
+            ctx.fill();
+            ctx.stroke();
+
+            // 內部暗淡藍心（象徵電子已安定待在裡面）
+            ctx.beginPath();
+            ctx.arc(x, y, radius * 0.48, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.32)';
+            ctx.fill();
+
+            if (showLabel) {
+                ctx.fillStyle = '#64748b';
+                ctx.font = '700 9px "Noto Sans TC", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('中性', x, y + radius + 11);
+            }
+            ctx.restore();
+        }
+
+        /**
+         * 繪製【Snap & Fill 填滿瞬間擴散漣漪與微閃光】
+         */
+        function drawRipples(ctx, rippleList) {
+            for (let i = 0; i < rippleList.length; i++) {
+                const r = rippleList[i];
+                const progress = r.t; // 0 -> 1
+                const alpha = Math.max(0, 1 - progress);
+
+                ctx.save();
+                // 中心瞬間白金微閃光（前 35% 時間）
+                if (progress < 0.38) {
+                    const flashAlpha = (1 - progress / 0.38) * 0.95;
+                    const flashR = r.maxR * (0.28 + progress * 0.5);
+                    const grad = ctx.createRadialGradient(r.x, r.y, 0, r.x, r.y, flashR);
+                    grad.addColorStop(0, `rgba(255, 255, 255, ${flashAlpha})`);
+                    grad.addColorStop(0.5, `rgba(253, 224, 71, ${flashAlpha * 0.7})`);
+                    grad.addColorStop(1, 'rgba(56, 189, 248, 0)');
+                    ctx.beginPath();
+                    ctx.arc(r.x, r.y, flashR, 0, Math.PI * 2);
+                    ctx.fillStyle = grad;
+                    ctx.fill();
+                }
+
+                // 外圈青色擴散漣漪
+                ctx.beginPath();
+                ctx.arc(r.x, r.y, r.maxR * (0.25 + progress * 0.75), 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(125, 211, 252, ${alpha * 0.9})`;
+                ctx.lineWidth = 2.4 * (1 - progress * 0.5);
+                ctx.stroke();
+
+                // 內圈暖橘色擴散漣漪（象徵正負電荷中和）
+                ctx.beginPath();
+                ctx.arc(r.x, r.y, r.maxR * (0.18 + progress * 0.52), 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(253, 186, 116, ${alpha * 0.85})`;
+                ctx.lineWidth = 1.8 * (1 - progress * 0.5);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        }
+
+        /**
+         * 繪製直線箭頭
+         */
+        function drawArrow(ctx, x1, y1, x2, y2, color, lineWidth = 2, headLen = 6.5) {
+            const angle = Math.atan2(y2 - y1, x2 - x1);
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = lineWidth;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
+
+        /**
+         * 繪製拋物線弧形軌跡箭頭（呈現電子飛入電洞的路徑）
+         */
+        function drawParabolicArcArrow(ctx, x1, y1, cx, cy, x2, y2, color, progress = 1.0) {
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.8;
+            ctx.setLineDash([4, 3]);
+            ctx.globalAlpha = 0.78;
+
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.quadraticCurveTo(cx, cy, x2, y2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 計算終點切線角度畫箭頭
+            const angle = Math.atan2(y2 - cy, x2 - cx);
+            const headLen = 6;
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(x2, y2);
+            ctx.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // 計算二次貝茲曲線上的點
+        function quadBezier(x0, y0, cx, cy, x1, y1, t) {
+            const inv = 1 - t;
+            return {
+                x: inv * inv * x0 + 2 * inv * t * cx + t * t * x1,
+                y: inv * inv * y0 + 2 * inv * t * cy + t * t * y1
+            };
+        }
+
+        // ============================================================================
+        // 物理動態更新邏輯 (Update Step)
+        // ============================================================================
+        function updateSimulation(simDt) {
+            // 更新所有漣漪生命週期
+            const updateRippleList = (list) => {
+                for (let i = list.length - 1; i >= 0; i--) {
+                    list[i].t += simDt * 1.9;
+                    if (list[i].t >= 1) list.splice(i, 1);
+                }
+            };
+            updateRippleList(simData.nmosRipples);
+            updateRippleList(simData.pmosRipples);
+            updateRippleList(simData.zoomNmos.ripples);
+            updateRippleList(simData.zoomPmos.ripples);
+
+            // ---------------- 1. 更新 NMOS 空乏填洞與導通 ----------------
+            const nVg = state.nmosVg;
+            if (nVg < 0.15) {
+                // 關閉狀態：全部恢復為空心電洞
+                simData.nmosSurfaceSlots.forEach(s => { s.filled = false; });
+                simData.nmosFillEvents = [];
+                simData.zoomNmos.nodes.fill('hole');
+                simData.zoomNmos.fillAnims = [];
+            } else if (nVg < V_TH) {
+                // 空乏／填洞過程 (0.15V ~ 1.49V)：
+                // 持續讓表面幾個電洞重複上演「電子飛入→卡進→漣漪中和」的視覺，同時依電壓決定填滿比例
+                const fillRatio = Math.min(0.95, nVg / V_TH);
+                const targetFilledCount = Math.max(1, Math.round(fillRatio * 7));
+
+                // 剖面填洞事件產生器
+                simData.nmosFillCooldown -= simDt;
+                if (simData.nmosFillCooldown <= 0 && simData.nmosFillEvents.length < 2) {
+                    // 找一個未填滿的槽位；若都滿了就重新挑一個打開讓學生持續觀察填洞動作
+                    let candidates = [];
+                    simData.nmosSurfaceSlots.forEach((s, idx) => {
+                        const isBeingFilled = simData.nmosFillEvents.some(e => e.slotIdx === idx);
+                        if (!s.filled && !isBeingFilled) candidates.push(idx);
+                    });
+
+                    if (candidates.length === 0) {
+                        // 重置其中 2 個槽位成為電洞，讓空乏填洞狀態保持活潑可視
+                        const resetIdx = Math.floor(Math.random() * simData.nmosSurfaceSlots.length);
+                        simData.nmosSurfaceSlots[resetIdx].filled = false;
+                        candidates.push(resetIdx);
+                    }
+
+                    const pickIdx = candidates[Math.floor(Math.random() * candidates.length)];
+                    const target = simData.nmosSurfaceSlots[pickIdx];
+                    // 電子從較近的 n+ 源極或汲極邊緣弧線飛入
+                    const fromLeft = pickIdx < 3.5;
+                    const startX = fromLeft ? GEO.srcX + GEO.wellW - 14 : GEO.drnX + 14;
+                    const startY = GEO.subY + 38 + Math.random() * 24;
+
+                    simData.nmosFillEvents.push({
+                        slotIdx: pickIdx,
+                        startX, startY,
+                        targetX: target.x, targetY: target.y,
+                        t: 0,
+                        duration: 0.72
+                    });
+                    simData.nmosFillCooldown = 0.52;
+                }
+
+                // 推進剖面填洞動畫
+                for (let i = simData.nmosFillEvents.length - 1; i >= 0; i--) {
+                    const ev = simData.nmosFillEvents[i];
+                    ev.t += simDt / ev.duration;
+                    if (ev.t >= 1) {
+                        simData.nmosSurfaceSlots[ev.slotIdx].filled = true;
+                        simData.nmosRipples.push({ x: ev.targetX, y: ev.targetY, t: 0, maxR: 24 });
+                        simData.nmosFillEvents.splice(i, 1);
+                    }
+                }
+
+                // 放大鏡 9 節點填洞動畫
+                simData.zoomNmos.fillTimer -= simDt;
+                if (simData.zoomNmos.fillTimer <= 0 && simData.zoomNmos.fillAnims.length < 2) {
+                    const holeIndices = [];
+                    for (let i = 0; i < ZOOM_NODES; i++) {
+                        const active = simData.zoomNmos.fillAnims.some(a => a.nodeIdx === i);
+                        if (simData.zoomNmos.nodes[i] === 'hole' && !active) holeIndices.push(i);
+                    }
+                    // 若全部都填滿了，重新釋放 3 個空位循環演示填洞手感
+                    if (holeIndices.length === 0) {
+                        const start = Math.floor(Math.random() * (ZOOM_NODES - 3));
+                        for (let k = start; k < start + 3; k++) {
+                            simData.zoomNmos.nodes[k] = 'hole';
+                            holeIndices.push(k);
+                        }
+                    }
+                    const nodeIdx = holeIndices[Math.floor(Math.random() * holeIndices.length)];
+                    const tx = getZoomNodeX(nodeIdx);
+                    const fromLeft = nodeIdx < ZOOM_NODES / 2;
+                    simData.zoomNmos.fillAnims.push({
+                        nodeIdx,
+                        startX: tx + (fromLeft ? -58 : 58),
+                        startY: 22,
+                        t: 0,
+                        duration: 0.85
+                    });
+                    simData.zoomNmos.fillTimer = 0.62;
+                }
+
+                for (let i = simData.zoomNmos.fillAnims.length - 1; i >= 0; i--) {
+                    const a = simData.zoomNmos.fillAnims[i];
+                    a.t += simDt / a.duration;
+                    if (a.t >= 1) {
+                        simData.zoomNmos.nodes[a.nodeIdx] = 'neutral';
+                        simData.zoomNmos.ripples.push({ x: getZoomNodeX(a.nodeIdx), y: 86, t: 0, maxR: 32 });
+                        simData.zoomNmos.fillAnims.splice(i, 1);
+                    }
+                }
+            } else {
+                // NMOS 導通階段 (V_G >= 1.5V)：表面電洞全填滿中和，大量自由電子在通道暢行
+                simData.nmosSurfaceSlots.forEach(s => { s.filled = true; });
+                simData.nmosFillEvents = [];
+                simData.zoomNmos.nodes.fill('neutral');
+                simData.zoomNmos.fillAnims = [];
+
+                const overdrive = nVg - V_TH;
+                const driftSpeed = state.vdsOn ? (0.22 + (overdrive / (MAX_VG - V_TH)) * 0.68) : 0;
+
+                simData.nmosChannelElectrons.forEach(p => {
+                    if (driftSpeed > 0) {
+                        p.u += driftSpeed * simDt;
+                        if (p.u > 1) p.u -= 1;
+                    }
+                });
+
+                simData.zoomNmos.freeElectrons.forEach(p => {
+                    if (driftSpeed > 0) {
+                        p.u += driftSpeed * 0.85 * simDt;
+                        if (p.u > 1) p.u -= 1;
+                    }
+                });
+            }
+
+            // ---------------- 2. 更新 PMOS 空乏與「電子接力填洞」導通 ----------------
+            const pMag = Math.abs(state.pmosVg);
+            if (pMag < 0.15) {
+                simData.pmosRelayHops = [];
+                simData.zoomPmos.relayHops = [];
+                simData.zoomPmos.nodes.fill('electron');
+            } else if (pMag < V_TH) {
+                simData.pmosRelayHops = [];
+                simData.zoomPmos.relayHops = [];
+                simData.zoomPmos.nodes.fill('depleted');
+            } else {
+                // PMOS 導通階段 (|V_G| >= 1.5V)：
+                const overdrive = pMag - V_TH;
+                const speedFactor = 0.65 + (overdrive / (MAX_VG - V_TH)) * 1.15;
+
+                // 確保放大鏡與剖面都有適當數量的電洞
+                const ensureHoles = (arr, desiredCount, isZoom) => {
+                    const curHoles = arr.filter(x => isZoom ? x === 'hole' : x === true).length;
+                    if (curHoles === 0) {
+                        for (let i = 0; i < arr.length; i++) {
+                            arr[i] = isZoom ? 'electron' : false;
+                        }
+                        if (desiredCount >= 3) {
+                            arr[0] = isZoom ? 'hole' : true;
+                            arr[3] = isZoom ? 'hole' : true;
+                            arr[6] = isZoom ? 'hole' : true;
+                        } else {
+                            arr[1] = isZoom ? 'hole' : true;
+                            arr[5] = isZoom ? 'hole' : true;
+                        }
+                    }
+                };
+
+                const desiredHoles = pMag >= 3.2 ? 3 : 2;
+                ensureHoles(simData.pmosChannelSlots, desiredHoles, false);
+                ensureHoles(simData.zoomPmos.nodes, desiredHoles, true);
+
+                if (state.vdsOn) {
+                    // A. 更新【剖面 PMOS】接力填洞：
+                    // 電洞要從左(S) -> 右(D) 移動，因此右側(i+1)的電子向左跳進 i 號電洞！
+                    simData.pmosRelayTimer -= simDt * speedFactor;
+                    if (simData.pmosRelayTimer <= 0 && simData.pmosRelayHops.length < 2) {
+                        // 找出所有目前為電洞的槽位（優先觸發尚未進行跳躍的）
+                        for (let i = 0; i < simData.pmosChannelSlots.length; i++) {
+                            const isHole = simData.pmosChannelSlots[i];
+                            const busy = simData.pmosRelayHops.some(h => h.toSlot === i || h.fromSlot === i);
+                            if (isHole && !busy) {
+                                // 如果已經在最右邊(slot 7)，讓汲極提供一個電子跳進 slot 7，同時源極(slot 0)產生新電洞
+                                if (i === simData.pmosChannelSlots.length - 1) {
+                                    simData.pmosRelayHops.push({
+                                        fromSlot: i + 1, // 代表右側汲極邊緣
+                                        toSlot: i,
+                                        t: 0,
+                                        duration: 0.62,
+                                        wrapToZero: true
+                                    });
+                                    break;
+                                } else if (!simData.pmosChannelSlots[i + 1]) {
+                                    // 右側相鄰槽位是電子，發起「電子向左跳入填洞」！
+                                    simData.pmosRelayHops.push({
+                                        fromSlot: i + 1,
+                                        toSlot: i,
+                                        t: 0,
+                                        duration: 0.62,
+                                        wrapToZero: false
+                                    });
+                                    break;
+                                }
+                            }
+                        }
+                        simData.pmosRelayTimer = 0.42;
+                    }
+
+                    // 推進剖面 PMOS 跳躍動畫
+                    const getPmosSlotX = (idx) => {
+                        if (idx >= simData.pmosChannelSlots.length) return GEO.drnX + 8;
+                        return GEO.chLeft + 16 + (idx / (simData.pmosChannelSlots.length - 1)) * (GEO.chRight - GEO.chLeft - 32);
+                    };
+
+                    for (let i = simData.pmosRelayHops.length - 1; i >= 0; i--) {
+                        const hop = simData.pmosRelayHops[i];
+                        hop.t += (simDt * speedFactor) / hop.duration;
+                        if (hop.t >= 1) {
+                            // 跳躍完成：toSlot 被電子填滿，fromSlot 變成新的電洞！
+                            simData.pmosChannelSlots[hop.toSlot] = false;
+                            if (hop.wrapToZero) {
+                                simData.pmosChannelSlots[0] = true;
+                            } else {
+                                simData.pmosChannelSlots[hop.fromSlot] = true;
+                            }
+                            simData.pmosRipples.push({
+                                x: getPmosSlotX(hop.toSlot),
+                                y: GEO.subY + 14,
+                                t: 0,
+                                maxR: 22
+                            });
+                            simData.pmosRelayHops.splice(i, 1);
+                        }
+                    }
+
+                    // B. 更新【放大鏡 PMOS】接力填洞（9 節點高清特寫）：
+                    simData.zoomPmos.relayTimer -= simDt * speedFactor;
+                    if (simData.zoomPmos.relayTimer <= 0 && simData.zoomPmos.relayHops.length < 2) {
+                        for (let i = 0; i < ZOOM_NODES; i++) {
+                            const isHole = simData.zoomPmos.nodes[i] === 'hole';
+                            const busy = simData.zoomPmos.relayHops.some(h => h.toIdx === i || h.fromIdx === i);
+                            if (isHole && !busy) {
+                                if (i === ZOOM_NODES - 1) {
+                                    simData.zoomPmos.relayHops.push({
+                                        fromIdx: ZOOM_NODES, // 右側外部汲極
+                                        toIdx: i,
+                                        t: 0,
+                                        duration: 0.78,
+                                        wrapToZero: true
+                                    });
+                                    break;
+                                } else if (simData.zoomPmos.nodes[i + 1] === 'electron') {
+                                    simData.zoomPmos.relayHops.push({
+                                        fromIdx: i + 1,
+                                        toIdx: i,
+                                        t: 0,
+                                        duration: 0.78,
+                                        wrapToZero: false
+                                    });
+                                    break;
+                                }
+                            }
+                        }
+                        simData.zoomPmos.relayTimer = 0.55;
+                    }
+
+                    for (let i = simData.zoomPmos.relayHops.length - 1; i >= 0; i--) {
+                        const hop = simData.zoomPmos.relayHops[i];
+                        hop.t += (simDt * speedFactor) / hop.duration;
+                        if (hop.t >= 1) {
+                            simData.zoomPmos.nodes[hop.toIdx] = 'electron';
+                            if (hop.wrapToZero) {
+                                simData.zoomPmos.nodes[0] = 'hole';
+                            } else {
+                                simData.zoomPmos.nodes[hop.fromIdx] = 'hole';
+                            }
+                            simData.zoomPmos.ripples.push({
+                                x: getZoomNodeX(hop.toIdx),
+                                y: 86,
+                                t: 0,
+                                maxR: 32
+                            });
+                            simData.zoomPmos.relayHops.splice(i, 1);
+                        }
+                    }
+                } else {
+                    // V_DS 關閉：停止接力跳躍，保留靜態電洞通道
+                    simData.pmosRelayHops = [];
+                    simData.zoomPmos.relayHops = [];
+                }
+            }
+        }
+
+        // ============================================================================
+        // 繪製剖面圖：NMOS (左) 與 PMOS (右)
+        // ============================================================================
+        function drawCrossSection(ctx, type, vgValue) {
+            const isNmos = (type === 'nmos');
+            const vgMag = Math.abs(vgValue);
+            const isOn = vgMag >= V_TH;
+            const overdrive = Math.max(0, vgMag - V_TH);
+
+            ctx.save();
+            ctx.clearRect(0, 0, CROSS_W, CROSS_H);
+
+            // 1. 基板背景
+            const subGrad = ctx.createLinearGradient(0, GEO.subY, 0, GEO.subY + GEO.subH);
+            if (isNmos) {
+                subGrad.addColorStop(0, 'rgba(136, 19, 55, 0.30)');
+                subGrad.addColorStop(1, 'rgba(76, 5, 25, 0.44)');
+            } else {
+                subGrad.addColorStop(0, 'rgba(12, 74, 110, 0.32)');
+                subGrad.addColorStop(1, 'rgba(8, 47, 73, 0.46)');
+            }
+            drawRoundedRect(ctx, GEO.subX, GEO.subY, GEO.subW, GEO.subH, { tl: 4, tr: 4, br: 12, bl: 12 });
+            ctx.fillStyle = subGrad;
+            ctx.fill();
+            ctx.strokeStyle = isNmos ? 'rgba(244, 114, 182, 0.35)' : 'rgba(56, 189, 248, 0.35)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // 2. 空乏區 (Depletion Region)
+            let depletionDepth = 0;
+            if (vgMag > 0.08) {
+                const subRatio = Math.min(1, vgMag / V_TH);
+                const postRatio = Math.max(0, (vgMag - V_TH) / (MAX_VG - V_TH));
+                depletionDepth = subRatio * 76 + postRatio * 20;
+            }
+
+            if (depletionDepth > 6) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(GEO.chLeft - 8, GEO.subY);
+                ctx.lineTo(GEO.chRight + 8, GEO.subY);
+                ctx.quadraticCurveTo(GEO.chRight + 10, GEO.subY + depletionDepth, GEO.chRight - 22, GEO.subY + depletionDepth);
+                ctx.lineTo(GEO.chLeft + 22, GEO.subY + depletionDepth);
+                ctx.quadraticCurveTo(GEO.chLeft - 10, GEO.subY + depletionDepth, GEO.chLeft - 8, GEO.subY);
+                ctx.closePath();
+
+                ctx.fillStyle = 'rgba(11, 17, 32, 0.78)';
+                ctx.fill();
+                ctx.setLineDash([5, 4]);
+                ctx.strokeStyle = 'rgba(148, 163, 184, 0.55)';
+                ctx.lineWidth = 1.4;
+                ctx.stroke();
+                ctx.restore();
+
+                if (depletionDepth > 36) {
+                    ctx.fillStyle = 'rgba(203, 213, 225, 0.78)';
+                    ctx.font = '600 11px "Noto Sans TC", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('空乏區 (Depletion Region)', CROSS_W / 2, GEO.subY + depletionDepth - 10);
+                }
+            }
+
+            // 3. 基板多數載子（受電場排斥向下退開）
+            const majorityList = isNmos ? simData.nmosSubstrateHoles : simData.pmosSubstrateElectrons;
+            majorityList.forEach(p => {
+                let px = p.baseX + Math.sin(state.simTime * p.speed + p.phase) * 2.2;
+                let py = p.baseY + Math.cos(state.simTime * p.speed * 0.9 + p.phase) * 2.2;
+
+                if (px > GEO.chLeft - 12 && px < GEO.chRight + 12 && depletionDepth > 0) {
+                    const minAllowedY = GEO.subY + depletionDepth + 12;
+                    if (py < minAllowedY) {
+                        py = Math.min(GEO.subY + GEO.subH - 28, minAllowedY + (p.baseY - GEO.subY) * 0.42);
+                    }
+                }
+                const inLeft = (px < GEO.srcX + GEO.wellW + 6 && py < GEO.subY + GEO.wellH + 6);
+                const inRight = (px > GEO.drnX - 6 && py < GEO.subY + GEO.wellH + 6);
+                if (!inLeft && !inRight) {
+                    if (isNmos) {
+                        drawHollowHole(ctx, px, py, 5.2, 0.62);
+                    } else {
+                        drawSolidElectron(ctx, px, py, 5.2, 0.62);
+                    }
+                }
+            });
+
+            // 4. 通道表面動態繪製（核心差異區）
+            if (isNmos) {
+                if (vgMag >= 0.15 && !isOn) {
+                    // NMOS 空乏與填洞階段：繪製表面 7 個槽位（空心電洞 或 已填滿中性點）
+                    simData.nmosSurfaceSlots.forEach(s => {
+                        if (s.filled) {
+                            drawNeutralSite(ctx, s.x, s.y, 5.5, false);
+                        } else {
+                            drawHollowHole(ctx, s.x, s.y, 5.8, 0.95);
+                        }
+                    });
+
+                    // 繪製正在飛入電洞的電子與拋物線軌跡
+                    simData.nmosFillEvents.forEach(ev => {
+                        const eased = easeSnap(Math.min(1, ev.t));
+                        const cx = (ev.startX + ev.targetX) / 2;
+                        const cy = Math.min(ev.startY, ev.targetY) - 24;
+                        if (state.showArrows) {
+                            drawParabolicArcArrow(ctx, ev.startX, ev.startY, cx, cy, ev.targetX, ev.targetY, '#38bdf8', eased);
+                        }
+                        const pos = quadBezier(ev.startX, ev.startY, cx, cy, ev.targetX, ev.targetY, eased);
+                        drawSolidElectron(ctx, pos.x, pos.y, 5.8, 1.0, true);
+                    });
+
+                    // 繪製填滿漣漪
+                    drawRipples(ctx, simData.nmosRipples);
+                } else if (isOn) {
+                    // NMOS 導通階段：電子通道 (n-channel)
+                    const chH = 15 + (overdrive / (MAX_VG - V_TH)) * 22;
+                    const chGrad = ctx.createLinearGradient(0, GEO.subY, 0, GEO.subY + chH);
+                    chGrad.addColorStop(0, 'rgba(56, 189, 248, 0.65)');
+                    chGrad.addColorStop(0.75, 'rgba(14, 165, 233, 0.28)');
+                    chGrad.addColorStop(1, 'rgba(2, 132, 199, 0.02)');
+                    ctx.fillStyle = chGrad;
+                    ctx.fillRect(GEO.chLeft - 2, GEO.subY, (GEO.chRight - GEO.chLeft) + 4, chH);
+
+                    const activeCount = Math.floor(10 + (overdrive / (MAX_VG - V_TH)) * 22);
+                    for (let i = 0; i < activeCount; i++) {
+                        const p = simData.nmosChannelElectrons[i];
+                        const cx = GEO.chLeft + 6 + p.u * (GEO.chRight - GEO.chLeft - 12);
+                        const cy = GEO.subY + 5 + p.v * (chH - 10) + Math.sin(state.simTime * 3 + p.phase) * 1.4;
+                        drawSolidElectron(ctx, cx, cy, 5.3, 0.96);
+                    }
+
+                    ctx.fillStyle = '#bae6fd';
+                    ctx.font = '700 11.5px "Noto Sans TC", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('電子通道 (n-channel) — 自由電子高速流動', CROSS_W / 2, GEO.subY + chH + 14);
+                }
+            } else {
+                // PMOS 導通階段：電洞通道 (p-channel) + 電子向左接力填洞動畫
+                if (isOn) {
+                    const chH = 18 + (overdrive / (MAX_VG - V_TH)) * 18;
+                    const chGrad = ctx.createLinearGradient(0, GEO.subY, 0, GEO.subY + chH);
+                    chGrad.addColorStop(0, 'rgba(251, 146, 60, 0.55)');
+                    chGrad.addColorStop(0.75, 'rgba(234, 88, 12, 0.22)');
+                    chGrad.addColorStop(1, 'rgba(194, 65, 12, 0.02)');
+                    ctx.fillStyle = chGrad;
+                    ctx.fillRect(GEO.chLeft - 2, GEO.subY, (GEO.chRight - GEO.chLeft) + 4, chH);
+
+                    const slotCount = simData.pmosChannelSlots.length;
+                    const getSlotX = (idx) => {
+                        if (idx >= slotCount) return GEO.drnX + 8;
+                        return GEO.chLeft + 16 + (idx / (slotCount - 1)) * (GEO.chRight - GEO.chLeft - 32);
+                    };
+                    const slotY = GEO.subY + 14;
+
+                    // 繪製 8 個通道節點（跳躍中的起點電子暫時隱藏改由飛行電子繪製）
+                    for (let i = 0; i < slotCount; i++) {
+                        const sx = getSlotX(i);
+                        const isJumpingOut = simData.pmosRelayHops.some(h => h.fromSlot === i);
+                        if (simData.pmosChannelSlots[i]) {
+                            drawHollowHole(ctx, sx, slotY, 5.8, 0.98);
+                        } else if (isJumpingOut) {
+                            // 電子正要跳走，原位置逐漸浮現新電洞
+                            const hop = simData.pmosRelayHops.find(h => h.fromSlot === i);
+                            drawHollowHole(ctx, sx, slotY, 5.8, Math.min(0.95, hop.t * 1.2));
+                        } else {
+                            drawSolidElectron(ctx, sx, slotY, 5.3, 0.85);
+                        }
+                    }
+
+                    // 繪製正在向左弧線跳躍填洞的電子
+                    simData.pmosRelayHops.forEach(hop => {
+                        const x1 = getSlotX(hop.fromSlot);
+                        const x2 = getSlotX(hop.toSlot);
+                        const cx = (x1 + x2) / 2;
+                        const cy = slotY + 26; // 向下弧線避開氧化層邊界
+                        const eased = easeSnap(Math.min(1, hop.t));
+
+                        if (state.showArrows) {
+                            drawParabolicArcArrow(ctx, x1, slotY + 4, cx, cy, x2, slotY + 5, '#38bdf8', eased);
+                        }
+                        const pos = quadBezier(x1, slotY, cx, cy, x2, slotY, eased);
+                        drawSolidElectron(ctx, pos.x, pos.y, 5.8, 1.0, true);
+                    });
+
+                    // 繪製填滿漣漪
+                    drawRipples(ctx, simData.pmosRipples);
+
+                    ctx.fillStyle = '#ffedd5';
+                    ctx.font = '700 11.5px "Noto Sans TC", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('電洞通道 (p-channel) — 電子向左填洞，電洞向右移', CROSS_W / 2, GEO.subY + chH + 18);
+                }
+            }
+
+            // 5. 源極 (S) 與汲極 (D) 重摻雜井區
+            const drawWell = (x, topLbl, subLbl) => {
+                const wellGrad = ctx.createLinearGradient(x, GEO.subY, x, GEO.subY + GEO.wellH);
+                if (isNmos) {
+                    wellGrad.addColorStop(0, '#0284c7');
+                    wellGrad.addColorStop(1, '#075985');
+                } else {
+                    wellGrad.addColorStop(0, '#ea580c');
+                    wellGrad.addColorStop(1, '#9a3412');
+                }
+                drawRoundedRect(ctx, x, GEO.subY, GEO.wellW, GEO.wellH, { tl: 0, tr: 0, br: 15, bl: 15 });
+                ctx.fillStyle = wellGrad;
+                ctx.fill();
+                ctx.strokeStyle = isNmos ? '#7dd3fc' : '#fdba74';
+                ctx.lineWidth = 1.6;
+                ctx.stroke();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '800 15px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(topLbl, x + GEO.wellW / 2, GEO.subY + 34);
+                ctx.font = '700 13px "Noto Sans TC", sans-serif';
+                ctx.fillStyle = isNmos ? '#e0f2fe' : '#ffedd5';
+                ctx.fillText(subLbl, x + GEO.wellW / 2, GEO.subY + 56);
+            };
+
+            drawWell(GEO.srcX, isNmos ? 'n⁺' : 'p⁺', '源極 (S)');
+            drawWell(GEO.drnX, isNmos ? 'n⁺' : 'p⁺', '汲極 (D)');
+
+            // 基板底部標籤
+            ctx.fillStyle = isNmos ? '#fda4af' : '#93c5fd';
+            ctx.font = '700 13px "Noto Sans TC", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(isNmos ? 'P 型基板 (多數載子：空心電洞 ○+)' : 'N 型基板 (多數載子：實心電子 ●−)', CROSS_W / 2, GEO.subY + GEO.subH - 12);
+
+            // 6. 氧化絕緣層 (SiO2) 與垂直電場箭頭
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(GEO.gateX, GEO.oxY, GEO.gateW, GEO.oxH);
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 1.2;
+            ctx.strokeRect(GEO.gateX, GEO.oxY, GEO.gateW, GEO.oxH);
+
+            if (vgMag < 0.2) {
+                ctx.fillStyle = '#e2e8f0';
+                ctx.font = '600 11px "Noto Sans TC", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('氧化絕緣層 (SiO₂)', CROSS_W / 2, GEO.oxY + 17);
+            } else {
+                const alpha = Math.min(0.95, 0.3 + (vgMag / MAX_VG) * 0.7);
+                const col = `rgba(250, 204, 21, ${alpha})`;
+                for (let i = 0; i < 7; i++) {
+                    const ax = GEO.gateX + 24 + i * ((GEO.gateW - 48) / 6);
+                    if (isNmos) {
+                        drawArrow(ctx, ax, GEO.oxY + 3, ax, GEO.oxY + GEO.oxH - 3, col, 1.7, 5);
+                    } else {
+                        drawArrow(ctx, ax, GEO.oxY + GEO.oxH - 3, ax, GEO.oxY + 3, col, 1.7, 5);
+                    }
+                }
+                ctx.fillStyle = '#cbd5e1';
+                ctx.font = '600 10.5px Inter, sans-serif';
+                ctx.textAlign = 'right';
+                ctx.fillText('SiO₂', GEO.gateX - 6, GEO.oxY + 17);
+            }
+
+            // 7. 金屬閘極 (Gate) 與累積電荷
+            const gateGrad = ctx.createLinearGradient(0, GEO.gateY, 0, GEO.gateY + GEO.gateH);
+            gateGrad.addColorStop(0, '#64748b');
+            gateGrad.addColorStop(1, '#334155');
+            drawRoundedRect(ctx, GEO.gateX, GEO.gateY, GEO.gateW, GEO.gateH, { tl: 8, tr: 8, br: 0, bl: 0 });
+            ctx.fillStyle = gateGrad;
+            ctx.fill();
+            ctx.strokeStyle = isOn ? (isNmos ? '#38bdf8' : '#fb923c') : '#94a3b8';
+            ctx.lineWidth = isOn ? 2 : 1.3;
+            ctx.stroke();
+
+            ctx.fillStyle = '#f8fafc';
+            ctx.font = '700 13px "Noto Sans TC", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('金屬閘極 (G)', CROSS_W / 2, GEO.gateY + 16);
+
+            if (vgMag >= 0.2) {
+                const cnt = Math.max(2, Math.min(10, Math.round((vgMag / MAX_VG) * 10)));
+                ctx.save();
+                ctx.font = '900 14px Inter, sans-serif';
+                ctx.fillStyle = isNmos ? '#fde047' : '#7dd3fc';
+                ctx.shadowColor = isNmos ? '#eab308' : '#0284c7';
+                ctx.shadowBlur = 6;
+                const span = GEO.gateW - 36;
+                for (let i = 0; i < cnt; i++) {
+                    const cx = GEO.gateX + 18 + (cnt === 1 ? span / 2 : i * (span / (cnt - 1)));
+                    ctx.fillText(isNmos ? '+' : '−', cx, GEO.gateY + GEO.gateH - 5);
+                }
+                ctx.restore();
+            }
+
+            // 8. 電極接線與電壓標籤
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(CROSS_W / 2, GEO.gateY);
+            ctx.lineTo(CROSS_W / 2, 26);
+            ctx.stroke();
+
+            const vgSign = vgValue > 0 ? '+' : '';
+            drawRoundedRect(ctx, CROSS_W / 2 - 54, 6, 108, 22, 11);
+            ctx.fillStyle = isNmos ? 'rgba(12, 74, 110, 0.95)' : 'rgba(124, 45, 18, 0.95)';
+            ctx.fill();
+            ctx.strokeStyle = isNmos ? '#38bdf8' : '#fb923c';
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '700 12px Inter, monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(`V_G = ${vgSign}${vgValue.toFixed(1)}V`, CROSS_W / 2, 21);
+
+            const srcCX = GEO.srcX + GEO.wellW / 2;
+            const drnCX = GEO.drnX + GEO.wellW / 2;
+            ctx.fillStyle = '#94a3b8';
+            ctx.fillRect(srcCX - 16, GEO.subY - 6, 32, 6);
+            ctx.fillRect(drnCX - 16, GEO.subY - 6, 32, 6);
+            ctx.beginPath();
+            ctx.moveTo(srcCX, GEO.subY - 6);
+            ctx.lineTo(srcCX, 40);
+            ctx.moveTo(drnCX, GEO.subY - 6);
+            ctx.lineTo(drnCX, 40);
+            ctx.stroke();
+
+            ctx.font = '600 11px Inter, sans-serif';
+            if (state.vdsOn) {
+                ctx.fillStyle = '#94a3b8';
+                ctx.fillText(isNmos ? 'S (0V)' : 'S (+V_DD)', srcCX, 32);
+                ctx.fillStyle = isNmos ? '#38bdf8' : '#fb923c';
+                ctx.fillText(isNmos ? 'D (+V_DS)' : 'D (0V)', drnCX, 32);
+            } else {
+                ctx.fillStyle = '#64748b';
+                ctx.fillText('S (0V)', srcCX, 32);
+                ctx.fillText('D (0V)', drnCX, 32);
+            }
+
+            // 9. 底部微觀放大框標示與電流方向條
+            ctx.save();
+            ctx.strokeStyle = isNmos ? 'rgba(56, 189, 248, 0.45)' : 'rgba(251, 146, 60, 0.45)';
+            ctx.setLineDash([4, 3]);
+            ctx.lineWidth = 1.2;
+            ctx.strokeRect(GEO.chLeft - 4, GEO.subY + 1, GEO.chRight - GEO.chLeft + 8, 34);
+            ctx.restore();
+
+            if (isOn && state.vdsOn) {
+                const y = 336;
+                if (isNmos) {
+                    drawArrow(ctx, GEO.chRight - 10, y, GEO.chLeft + 10, y, '#38bdf8', 2.2, 6.5);
+                    ctx.fillStyle = '#7dd3fc';
+                    ctx.font = '700 11px "Noto Sans TC", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('← 傳統電流 I_D (D → S) ｜ 電子實際流向 S → D', CROSS_W / 2, y - 6);
+                } else {
+                    drawArrow(ctx, GEO.chLeft + 10, y, GEO.chRight - 10, y, '#fb923c', 2.2, 6.5);
+                    ctx.fillStyle = '#fdba74';
+                    ctx.font = '700 11px "Noto Sans TC", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('傳統電流 I_D & 電洞宏觀流向 (S → D) →', CROSS_W / 2, y - 6);
+                }
+            }
+
+            ctx.restore();
+        }
+
+        // ============================================================================
+        // 繪製微觀表面晶格放大鏡 (Zoom-in Strip)：9 個矽晶格節點高清特寫
+        // ============================================================================
+        function drawZoomNmos(ctx) {
+            const vg = state.nmosVg;
+            const nodeY = 86;
+
+            ctx.save();
+            ctx.clearRect(0, 0, ZOOM_W, ZOOM_H);
+
+            // 1. 矽晶格水平共價鍵連線
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(getZoomNodeX(0) - 24, nodeY);
+            ctx.lineTo(getZoomNodeX(ZOOM_NODES - 1) + 24, nodeY);
+            ctx.stroke();
+
+            // 底部 Si 原子底座標籤
+            for (let i = 0; i < ZOOM_NODES; i++) {
+                const nx = getZoomNodeX(i);
+                ctx.fillStyle = '#475569';
+                ctx.font = '700 10px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(`Si`, nx, nodeY + 34);
+            }
+
+            // 2. 依電壓階段繪製節點與動畫
+            if (vg < 0.15) {
+                // 關閉：整排空心電洞
+                for (let i = 0; i < ZOOM_NODES; i++) {
+                    drawHollowHole(ctx, getZoomNodeX(i), nodeY, 10.5, 0.95);
+                }
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '600 12px "Noto Sans TC", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('V_G = 0V：P 型表面布滿等待填補的空心電洞 (○+)，無自由電子通道', ZOOM_W / 2, 26);
+            } else if (vg < V_TH) {
+                // 空乏／填洞階段：清楚展示電子拋物線飛入並「咔！」填滿空心電洞
+                for (let i = 0; i < ZOOM_NODES; i++) {
+                    const nx = getZoomNodeX(i);
+                    if (simData.zoomNmos.nodes[i] === 'hole') {
+                        drawHollowHole(ctx, nx, nodeY, 10.5, 0.98);
+                    } else {
+                        drawNeutralSite(ctx, nx, nodeY, 10.5, true);
+                    }
+                }
+
+                // 繪製飛行填洞的電子與軌跡箭頭
+                simData.zoomNmos.fillAnims.forEach(a => {
+                    const tx = getZoomNodeX(a.nodeIdx);
+                    const ty = nodeY;
+                    const cx = (a.startX + tx) / 2;
+                    const cy = 12;
+                    const eased = easeSnap(Math.min(1, a.t));
+
+                    if (state.showArrows) {
+                        drawParabolicArcArrow(ctx, a.startX, a.startY, cx, cy, tx, ty - 12, '#38bdf8', eased);
+                    }
+                    const pos = quadBezier(a.startX, a.startY, cx, cy, tx, ty, eased);
+                    drawSolidElectron(ctx, pos.x, pos.y, 10.5, 1.0, true);
+                });
+
+                // 填滿漣漪
+                drawRipples(ctx, simData.zoomNmos.ripples);
+
+                ctx.fillStyle = '#fde047';
+                ctx.font = '700 12px "Noto Sans TC", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('⚡ 空乏填洞中：正閘極吸引電子掉入空心電洞 → 觸發漣漪並電性中和', ZOOM_W / 2, 22);
+            } else {
+                // 導通階段：底層共價鍵空位全數填滿呈中性，上方出現自由電子高速通道
+                for (let i = 0; i < ZOOM_NODES; i++) {
+                    drawNeutralSite(ctx, getZoomNodeX(i), nodeY + 8, 8.5, false);
+                }
+
+                // 發光電子導電帶
+                const laneY = 46;
+                const laneGrad = ctx.createLinearGradient(0, laneY - 18, 0, laneY + 18);
+                laneGrad.addColorStop(0, 'rgba(56, 189, 248, 0.05)');
+                laneGrad.addColorStop(0.5, 'rgba(56, 189, 248, 0.25)');
+                laneGrad.addColorStop(1, 'rgba(56, 189, 248, 0.05)');
+                ctx.fillStyle = laneGrad;
+                ctx.fillRect(16, laneY - 18, ZOOM_W - 32, 36);
+
+                // 繪製自由電子
+                simData.zoomNmos.freeElectrons.forEach(p => {
+                    const ex = 20 + p.u * (ZOOM_W - 40);
+                    const ey = laneY + p.lane * 5 + Math.sin(state.simTime * 3.5 + p.phase) * 2;
+                    drawSolidElectron(ctx, ex, ey, 9.2, 1.0);
+                });
+
+                // 頂部方向標示
+                if (state.showArrows && state.vdsOn) {
+                    drawArrow(ctx, 130, 18, 430, 18, '#38bdf8', 2.2, 7);
+                    ctx.fillStyle = '#bae6fd';
+                    ctx.font = '700 11.5px "Noto Sans TC", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('空位全滿！多餘自由電子暢行導通 (S → D)', ZOOM_W / 2, 13);
+                } else {
+                    ctx.fillStyle = '#bae6fd';
+                    ctx.font = '700 11.5px "Noto Sans TC", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('空位全滿！表面聚集大量自由電子（開啟 V_DS 即可流動）', ZOOM_W / 2, 18);
+                }
+            }
+
+            ctx.restore();
+        }
+
+        function drawZoomPmos(ctx) {
+            const pMag = Math.abs(state.pmosVg);
+            const nodeY = 86;
+
+            ctx.save();
+            ctx.clearRect(0, 0, ZOOM_W, ZOOM_H);
+
+            // 1. 矽晶格水平共價鍵連線
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(getZoomNodeX(0) - 24, nodeY);
+            ctx.lineTo(getZoomNodeX(ZOOM_NODES - 1) + 24, nodeY);
+            ctx.stroke();
+
+            for (let i = 0; i < ZOOM_NODES; i++) {
+                const nx = getZoomNodeX(i);
+                ctx.fillStyle = '#475569';
+                ctx.font = '700 10px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(`Si`, nx, nodeY + 34);
+            }
+
+            // 2. 依電壓階段繪製
+            if (pMag < 0.15) {
+                for (let i = 0; i < ZOOM_NODES; i++) {
+                    drawSolidElectron(ctx, getZoomNodeX(i), nodeY, 10.2, 0.88);
+                }
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '600 12px "Noto Sans TC", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('V_G = 0V：N 型表面布滿實心電子 (●−)，沒有電洞空位', ZOOM_W / 2, 26);
+            } else if (pMag < V_TH) {
+                // 空乏階段：電子正被負閘極向下推離表面
+                const pushY = (pMag / V_TH) * 26;
+                for (let i = 0; i < ZOOM_NODES; i++) {
+                    const nx = getZoomNodeX(i);
+                    drawNeutralSite(ctx, nx, nodeY, 9.5, false);
+                    // 往下離開中的電子
+                    drawSolidElectron(ctx, nx, nodeY + 8 + pushY, 7.5, Math.max(0.25, 1 - pMag / V_TH));
+                    if (state.showArrows && i % 2 === 0) {
+                        drawArrow(ctx, nx, nodeY - 4, nx, nodeY + 22, 'rgba(56, 189, 248, 0.65)', 1.5, 5);
+                    }
+                }
+                ctx.fillStyle = '#fde047';
+                ctx.font = '700 12px "Noto Sans TC", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('負閘極排斥表面電子向下離開，形成空乏區（尚未達 V_th = -1.5V）', ZOOM_W / 2, 22);
+            } else {
+                // PMOS 導通階段：核心亮點「電子向左弧線跳躍填洞 → 電洞向右宏觀移動」
+                for (let i = 0; i < ZOOM_NODES; i++) {
+                    const nx = getZoomNodeX(i);
+                    const isJumpingOut = simData.zoomPmos.relayHops.some(h => h.fromIdx === i);
+
+                    if (simData.zoomPmos.nodes[i] === 'hole') {
+                        drawHollowHole(ctx, nx, nodeY, 10.5, 1.0);
+                    } else if (isJumpingOut) {
+                        // 電子已起跳離開，原位浮現新電洞
+                        const hop = simData.zoomPmos.relayHops.find(h => h.fromIdx === i);
+                        drawHollowHole(ctx, nx, nodeY, 10.5, Math.min(1.0, hop.t * 1.25));
+                    } else {
+                        drawSolidElectron(ctx, nx, nodeY, 10.2, 0.92);
+                    }
+                }
+
+                // 繪製接力跳躍中的電子與拋物線弧形箭頭（由右往左跳入空心電洞！）
+                simData.zoomPmos.relayHops.forEach(hop => {
+                    const x1 = hop.fromIdx >= ZOOM_NODES ? ZOOM_W - 14 : getZoomNodeX(hop.fromIdx);
+                    const x2 = getZoomNodeX(hop.toIdx);
+                    const cx = (x1 + x2) / 2;
+                    const cy = nodeY - 54;
+                    const eased = easeSnap(Math.min(1, hop.t));
+
+                    if (state.showArrows) {
+                        drawParabolicArcArrow(ctx, x1, nodeY - 12, cx, cy, x2, nodeY - 13, '#38bdf8', eased);
+                    }
+                    const pos = quadBezier(x1, nodeY, cx, cy, x2, nodeY, eased);
+                    drawSolidElectron(ctx, pos.x, pos.y, 10.5, 1.0, true);
+                });
+
+                // 繪製填滿漣漪
+                drawRipples(ctx, simData.zoomPmos.ripples);
+
+                // 頂部雙向對照標註（藍箭頭向左 vs 橘箭頭向右）
+                if (state.vdsOn) {
+                    // 左半：藍色箭頭（微觀電子向左跳躍填洞）
+                    drawArrow(ctx, 258, 17, 68, 17, '#38bdf8', 2.2, 6.5);
+                    ctx.fillStyle = '#bae6fd';
+                    ctx.font = '700 11px "Noto Sans TC", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('← 微觀實際：電子向左跳入填洞', 165, 31);
+
+                    // 右半：橘色箭頭（宏觀電洞向右移動）
+                    drawArrow(ctx, 302, 17, 492, 17, '#fb923c', 2.2, 6.5);
+                    ctx.fillStyle = '#ffedd5';
+                    ctx.fillText('宏觀等效：電洞向右移動 (S → D) →', 397, 31);
+                } else {
+                    ctx.fillStyle = '#ffedd5';
+                    ctx.font = '700 11.5px "Noto Sans TC", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('表面已形成空心電洞通道（開啟 V_DS 即可觀察電子接力填洞）', ZOOM_W / 2, 22);
+                }
+            }
+
+            ctx.restore();
+        }
+
+        // ============================================================================
+        // 介面文字與狀態徽章更新
+        // ============================================================================
+        function updateUI() {
+            const nVg = state.nmosVg;
+            const pMag = Math.abs(state.pmosVg);
+
+            document.getElementById('master-vg-val').textContent = `${nVg.toFixed(1)}V`;
+            document.getElementById('nmos-vg-val').textContent = `+${nVg.toFixed(1)} V`;
+            document.getElementById('pmos-vg-val').textContent = pMag === 0 ? '0.0 V' : `-${pMag.toFixed(1)} V`;
+
+            // 更新 NMOS 狀態文字
+            const nBadge = document.getElementById('nmos-status-badge');
+            const nZoomTag = document.getElementById('nmos-zoom-tag');
+            const nPill = document.getElementById('nmos-phase-pill');
+            const nExp = document.getElementById('nmos-explanation');
+            const nTip = document.getElementById('nmos-tip');
+
+            if (nVg < 0.15) {
+                nBadge.textContent = '關閉 (OFF)';
+                nBadge.className = 'px-3 py-1 rounded-full text-xs font-bold border bg-slate-800 text-slate-300 border-slate-600';
+                nZoomTag.textContent = 'P 型表面（全是空心電洞）';
+                nPill.textContent = '關閉 OFF';
+                nExp.innerHTML = '閘極電壓 <strong>V<sub>G</sub> = 0V</strong>，P 型基板表面充滿空心橘色電洞（○+）。源極與汲極之間沒有自由電子通道，元件處於關閉斷路狀態。';
+                nTip.textContent = '💡 試著將電壓拉至 1.0V，觀察電子如何飛入並「咔！」填滿電洞。';
+            } else if (nVg < V_TH) {
+                nBadge.textContent = '空乏／電子填洞中';
+                nBadge.className = 'px-3 py-1 rounded-full text-xs font-bold border bg-amber-950/90 text-amber-300 border-amber-500/60';
+                nZoomTag.textContent = '⚡ 電子精準卡入空心電洞中和';
+                nPill.textContent = '空乏與填洞';
+                nExp.innerHTML = '閘極累積正電荷，吸引負電子向上移動並<strong>直接掉進、填滿表面空心電洞</strong>（產生發光漣漪並變為電中性），同時把下方多餘電洞推走，清出「空乏區」。';
+                nTip.textContent = '💡 觀察放大鏡：必須先把表面的空位（電洞）都填滿，之後多餘的電子才能自由流動！';
+            } else {
+                const strong = nVg >= 3.5;
+                nBadge.textContent = strong ? '強反轉導通 (ON)' : '臨界導通 (ON)';
+                nBadge.className = strong
+                    ? 'px-3 py-1 rounded-full text-xs font-bold border bg-sky-500 text-slate-950 border-sky-300 shadow-[0_0_12px_rgba(56,189,248,0.5)]'
+                    : 'px-3 py-1 rounded-full text-xs font-bold border bg-sky-950 text-sky-300 border-sky-400/60';
+                nZoomTag.textContent = '自由電子通道暢行導通';
+                nPill.textContent = strong ? '強反轉導通' : '反轉層導通';
+                nExp.innerHTML = '<strong>V<sub>G</sub> ≥ +1.5V：</strong>表面所有電洞皆已被填滿中和，強大電場持續吸來大量實心青藍電子形成<strong>電子通道 (n-channel)</strong>，自由電子由源極 (S) 高速流向汲極 (D)！';
+                nTip.textContent = state.vdsOn
+                    ? '⚡ 導通中：自由電子由 S → D 流動，傳統電流 I_D 方向為 D → S。'
+                    : '通道已形成！勾選上方「施加 V_DS 導通流動」即可看見電子奔流。';
+            }
+
+            // 更新 PMOS 狀態文字
+            const pBadge = document.getElementById('pmos-status-badge');
+            const pZoomTag = document.getElementById('pmos-zoom-tag');
+            const pPill = document.getElementById('pmos-phase-pill');
+            const pExp = document.getElementById('pmos-explanation');
+            const pTip = document.getElementById('pmos-tip');
+
+            if (pMag < 0.15) {
+                pBadge.textContent = '關閉 (OFF)';
+                pBadge.className = 'px-3 py-1 rounded-full text-xs font-bold border bg-slate-800 text-slate-300 border-slate-600';
+                pZoomTag.textContent = 'N 型表面（全是實心電子）';
+                pPill.textContent = '關閉 OFF';
+                pExp.innerHTML = '閘極電壓 <strong>V<sub>G</sub> = 0V</strong>，N 型基板表面填滿實心藍色電子（●−），缺乏電洞空位來連結兩側的 p⁺ 源極與汲極，元件關閉。';
+                pTip.textContent = '💡 試著切換至 1.8V 或 4.5V，觀察 PMOS 導通時最精彩的「電子接力填洞」！';
+            } else if (pMag < V_TH) {
+                pBadge.textContent = '空乏階段（排斥電子）';
+                pBadge.className = 'px-3 py-1 rounded-full text-xs font-bold border bg-amber-950/90 text-amber-300 border-amber-500/60';
+                pZoomTag.textContent = '負閘極排斥表面電子向下離開';
+                pPill.textContent = '空乏階段';
+                pExp.innerHTML = '閘極累積負電荷，將 N 型基板表面帶負電的<strong>實心電子向下排斥</strong>，露出不含自由載子的空乏區，但尚未達到臨界電壓（-1.5V）。';
+                pTip.textContent = '💡 繼續增加負電壓超過 -1.5V，表面就會露出整排空心橘色電洞通道！';
+            } else {
+                const strong = pMag >= 3.5;
+                pBadge.textContent = strong ? '強反轉導通 (ON)' : '臨界導通 (ON)';
+                pBadge.className = strong
+                    ? 'px-3 py-1 rounded-full text-xs font-bold border bg-orange-500 text-slate-950 border-orange-300 shadow-[0_0_12px_rgba(251,146,60,0.5)]'
+                    : 'px-3 py-1 rounded-full text-xs font-bold border bg-orange-950 text-orange-300 border-orange-400/60';
+                pZoomTag.textContent = '⚡ 電子向左跳填洞 → 電洞向右移';
+                pPill.textContent = strong ? '強反轉導通' : '電洞接力導通';
+                pExp.innerHTML = '<strong>V<sub>G</sub> ≤ -1.5V：</strong>表面露出空心橘色電洞形成<strong>電洞通道 (p-channel)</strong>。微觀上其實是<strong>右側的藍色電子不斷向左弧線跳躍、卡入填滿左邊的電洞</strong>，同時原位置冒出新電洞，宏觀就像電洞一路向右（S → D）移動！';
+                pTip.textContent = state.slowMo
+                    ? '🐢 慢動作開啟中：請細看放大鏡裡藍色電子如何一格一格向左卡進橘色空心環！'
+                    : '💡 強烈建議勾選上方「慢動作觀察填洞 (0.3x)」，體驗最震撼的接力填洞視覺！';
+            }
+        }
+
+        // ============================================================================
+        // 控制事件處理
+        // ============================================================================
+        function onMasterSliderInput(val) {
+            const v = parseFloat(val);
+            state.nmosVg = v;
+            state.pmosVg = -v;
+            document.getElementById('slider-nmos').value = v;
+            document.getElementById('slider-pmos').value = v;
+            updateUI();
+        }
+
+        function onNmosSliderInput(val) {
+            const v = parseFloat(val);
+            state.nmosVg = v;
+            if (state.syncMode) {
+                state.pmosVg = -v;
+                document.getElementById('slider-pmos').value = v;
+                document.getElementById('slider-master').value = v;
+            }
+            updateUI();
+        }
+
+        function onPmosSliderInput(val) {
+            const v = parseFloat(val);
+            state.pmosVg = -v;
+            if (state.syncMode) {
+                state.nmosVg = v;
+                document.getElementById('slider-nmos').value = v;
+                document.getElementById('slider-master').value = v;
+            }
+            updateUI();
+        }
+
+        function handleToggleChange() {
+            state.syncMode = document.getElementById('toggle-sync').checked;
+            state.vdsOn = document.getElementById('toggle-vds').checked;
+            state.slowMo = document.getElementById('toggle-slowmo').checked;
+            state.showArrows = document.getElementById('toggle-arrows').checked;
+
+            const masterBox = document.getElementById('master-slider-container');
+            if (state.syncMode) {
+                masterBox.classList.remove('opacity-35', 'pointer-events-none');
+                const v = state.nmosVg;
+                state.pmosVg = -v;
+                document.getElementById('slider-master').value = v;
+                document.getElementById('slider-pmos').value = v;
+            } else {
+                masterBox.classList.add('opacity-35', 'pointer-events-none');
+            }
+            updateUI();
+        }
+
+        function applyPreset(magnitude) {
+            state.nmosVg = magnitude;
+            state.pmosVg = -magnitude;
+            document.getElementById('slider-master').value = magnitude;
+            document.getElementById('slider-nmos').value = magnitude;
+            document.getElementById('slider-pmos').value = magnitude;
+            updateUI();
+        }
+
+        // ============================================================================
+        // 高 DPI (Retina / 投影機) 自適應 Canvas 尺寸管理
+        // ============================================================================
+        const canvases = {
+            nmos: document.getElementById('canvas-nmos'),
+            pmos: document.getElementById('canvas-pmos'),
+            zoomNmos: document.getElementById('zoom-nmos'),
+            zoomPmos: document.getElementById('zoom-pmos')
+        };
+        const ctxs = {
+            nmos: canvases.nmos.getContext('2d'),
+            pmos: canvases.pmos.getContext('2d'),
+            zoomNmos: canvases.zoomNmos.getContext('2d'),
+            zoomPmos: canvases.zoomPmos.getContext('2d')
+        };
+
+        function resizeAllCanvases() {
+            const dpr = window.devicePixelRatio || 1;
+            const setup = (el, ctx, logicalW, logicalH) => {
+                const rect = el.getBoundingClientRect();
+                if (rect.width === 0 || rect.height === 0) return;
+                el.width = Math.round(rect.width * dpr);
+                el.height = Math.round(rect.height * dpr);
+                ctx.setTransform(
+                    (rect.width * dpr) / logicalW, 0,
+                    0, (rect.height * dpr) / logicalH,
+                    0, 0
+                );
+            };
+
+            setup(canvases.nmos, ctxs.nmos, CROSS_W, CROSS_H);
+            setup(canvases.pmos, ctxs.pmos, CROSS_W, CROSS_H);
+            setup(canvases.zoomNmos, ctxs.zoomNmos, ZOOM_W, ZOOM_H);
+            setup(canvases.zoomPmos, ctxs.zoomPmos, ZOOM_W, ZOOM_H);
+        }
+
+        // ============================================================================
+        // 60fps 主動畫迴圈
+        // ============================================================================
+        let lastTime = performance.now();
+
+        function animateLoop(now) {
+            const rawDt = Math.min(0.05, (now - lastTime) / 1000);
+            lastTime = now;
+
+            // 套用 0.3x 慢動作倍率
+            const simDt = rawDt * (state.slowMo ? 0.3 : 1.0);
+            state.simTime += simDt;
+
+            updateSimulation(simDt);
+
+            drawCrossSection(ctxs.nmos, 'nmos', state.nmosVg);
+            drawCrossSection(ctxs.pmos, 'pmos', state.pmosVg);
+            drawZoomNmos(ctxs.zoomNmos);
+            drawZoomPmos(ctxs.zoomPmos);
+
+            requestAnimationFrame(animateLoop);
+        }
+
+        window.addEventListener('resize', resizeAllCanvases);
+
+        window.onload = function () {
+            initSimData();
+            resizeAllCanvases();
+            updateUI();
+            lastTime = performance.now();
+            requestAnimationFrame(animateLoop);
+        };
+    </script>
+</body>
+</html>
