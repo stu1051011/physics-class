@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>半導體物理互動模擬：電子與電洞的相對移動</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入字體：Inter 與 Noto Sans TC -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: #0b1120;
+            color: #e2e8f0;
+        }
+
+        /* 實驗室微弱網格背景 */
+        .lab-grid {
+            background-image: 
+                linear-gradient(to right, rgba(56, 189, 248, 0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(56, 189, 248, 0.05) 1px, transparent 1px);
+            background-size: 32px 32px;
+        }
+
+        /* 自訂範圍滑桿樣式 */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: #1e293b;
+            height: 6px;
+            border-radius: 999px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #38bdf8;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.7);
+            transition: transform 0.15s ease;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+        }
+
+        /* 可點擊電子的呼吸發光動畫 */
+        @keyframes pulse-ring {
+            0% { transform: scale(1); opacity: 0.85; }
+            50% { transform: scale(1.22); opacity: 0.25; }
+            100% { transform: scale(1); opacity: 0.85; }
+        }
+        .clickable-ring {
+            transform-box: fill-box;
+            transform-origin: center;
+            animation: pulse-ring 1.8s infinite ease-in-out;
+        }
+
+        /* 電洞虛線旋轉動畫 */
+        @keyframes spin-slow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .hole-spin {
+            transform-box: fill-box;
+            transform-origin: center;
+            animation: spin-slow 12s linear infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen lab-grid flex flex-col selection:bg-sky-500/30">
+
+    <!-- 頂部標題列 -->
+    <header class="w-full border-b border-slate-800/80 bg-slate-900/75 backdrop-blur-md sticky top-0 z-20">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500/20 to-orange-500/20 border border-sky-400/30 flex items-center justify-center shadow-lg shadow-sky-900/20 shrink-0">
+                    <span class="text-sky-400 font-bold text-sm">e⁻</span>
+                    <span class="text-slate-500 mx-0.5 text-xs">/</span>
+                    <span class="text-orange-400 font-bold text-sm">h⁺</span>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white">
+                        半導體載子運動模擬：電子與電洞的相對移動
+                    </h1>
+                    <p class="text-xs sm:text-sm text-slate-400">
+                        微觀電子向右填補空缺 vs. 宏觀正電荷（電洞）向左移動
+                    </p>
+                </div>
+            </div>
+
+            <!-- 模式切換與電場開關 -->
+            <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+                <div class="inline-flex rounded-xl bg-slate-800/90 p-1 border border-slate-700/80">
+                    <button id="btn-mode-lattice" onclick="setMode('lattice')" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all bg-sky-500 text-slate-950 shadow">
+                        晶格電子模式
+                    </button>
+                    <button id="btn-mode-analogy" onclick="setMode('analogy')" class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all text-slate-300 hover:text-white">
+                        停車位比喻模式
+                    </button>
+                </div>
+
+                <label class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/80 cursor-pointer select-none hover:border-slate-600 transition">
+                    <input type="checkbox" id="toggle-field" checked onchange="toggleElectricField()" class="w-4 h-4 rounded accent-sky-400 cursor-pointer">
+                    <span class="text-xs sm:text-sm text-slate-300 font-medium">外加電場</span>
+                </label>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主內容區 -->
+    <main class="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-6">
+
+        <!-- 核心互動模擬舞台 -->
+        <section class="relative rounded-2xl bg-slate-900/90 border border-slate-700/80 shadow-2xl shadow-black/50 overflow-hidden">
+            <!-- 舞台頂部狀態列 -->
+            <div class="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-6 py-3 bg-slate-950/60 border-b border-slate-800">
+                <div class="flex items-center gap-4 text-xs sm:text-sm">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8]"></span>
+                        <span class="text-slate-300" id="legend-electron">電子 (e⁻，負電)</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-full border-2 border-dashed border-orange-400 shadow-[0_0_8px_#fb923c]"></span>
+                        <span class="text-slate-300" id="legend-hole">電洞 (h⁺，等效正電)</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 text-xs sm:text-sm font-mono">
+                    <span class="px-2.5 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700">
+                        步數：<span id="step-counter" class="text-sky-400 font-bold">0</span> / 6
+                    </span>
+                    <span class="px-2.5 py-0.5 rounded-md bg-orange-950/60 text-orange-300 border border-orange-500/30">
+                        目前電洞位置：<span id="hole-pos-badge" class="font-bold text-orange-400">7</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- SVG 視覺化模擬畫布 -->
+            <div class="w-full p-2 sm:p-4 bg-gradient-to-b from-slate-900/40 to-slate-950/80">
+                <svg id="sim-svg" viewBox="0 0 960 390" class="w-full h-auto select-none" aria-label="電子與電洞相對移動模擬圖">
+                    <defs>
+                        <!-- 藍色發光濾鏡（電子） -->
+                        <filter id="glow-blue" x="-40%" y="-40%" width="180%" height="180%">
+                            <feGaussianBlur stdDeviation="4" result="blur" />
+                            <feMerge>
+                                <feMergeNode in="blur" />
+                                <feMergeNode in="SourceGraphic" />
+                            </feMerge>
+                        </filter>
+                        <!-- 橘紅色發光濾鏡（電洞） -->
+                        <filter id="glow-orange" x="-40%" y="-40%" width="180%" height="180%">
+                            <feGaussianBlur stdDeviation="4.5" result="blur" />
+                            <feMerge>
+                                <feMergeNode in="blur" />
+                                <feMergeNode in="SourceGraphic" />
+                            </feMerge>
+                        </filter>
+                        <!-- 電子球體漸層 -->
+                        <radialGradient id="grad-electron" cx="35%" cy="35%" r="65%">
+                            <stop offset="0%" stop-color="#bae6fd" />
+                            <stop offset="45%" stop-color="#38bdf8" />
+                            <stop offset="100%" stop-color="#0284c7" />
+                        </radialGradient>
+                        <!-- 可點擊電子高亮漸層 -->
+                        <radialGradient id="grad-electron-active" cx="35%" cy="35%" r="65%">
+                            <stop offset="0%" stop-color="#e0f2fe" />
+                            <stop offset="40%" stop-color="#38bdf8" />
+                            <stop offset="100%" stop-color="#0369a1" />
+                        </radialGradient>
+                        <!-- 藍色箭頭標記 -->
+                        <marker id="arrow-blue" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                            <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8" />
+                        </marker>
+                        <!-- 橘紅色箭頭標記 -->
+                        <marker id="arrow-orange" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                            <path d="M 0 1 L 10 5 L 0 9 z" fill="#fb923c" />
+                        </marker>
+                        <!-- 淡色電場箭頭 -->
+                        <marker id="arrow-field" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+                            <path d="M 0 1 L 10 5 L 0 9 z" fill="rgba(148, 163, 184, 0.45)" />
+                        </marker>
+                    </defs>
+
+                    <!-- 外加電場 / 電極群組 -->
+                    <g id="layer-electric-field">
+                        <!-- 左側負極 -->
+                        <rect x="16" y="75" width="46" height="225" rx="12" fill="rgba(30, 58, 138, 0.35)" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="4 3" />
+                        <circle cx="39" cy="145" r="14" fill="#1d4ed8" stroke="#60a5fa" stroke-width="1.5" />
+                        <text x="39" y="151" text-anchor="middle" fill="#ffffff" font-size="22" font-weight="700">−</text>
+                        <text x="39" y="195" text-anchor="middle" fill="#93c5fd" font-size="13" font-weight="600">負極</text>
+                        <text x="39" y="215" text-anchor="middle" fill="#64748b" font-size="11">排斥電子</text>
+
+                        <!-- 右側正極 -->
+                        <rect x="898" y="75" width="46" height="225" rx="12" fill="rgba(154, 52, 18, 0.35)" stroke="#f97316" stroke-width="1.5" stroke-dasharray="4 3" />
+                        <circle cx="921" cy="145" r="14" fill="#c2410c" stroke="#fb923c" stroke-width="1.5" />
+                        <text x="921" y="152" text-anchor="middle" fill="#ffffff" font-size="20" font-weight="700">+</text>
+                        <text x="921" y="195" text-anchor="middle" fill="#fdba74" font-size="13" font-weight="600">正極</text>
+                        <text x="921" y="215" text-anchor="middle" fill="#64748b" font-size="11">吸引電子</text>
+
+                        <!-- 頂部電場方向指示線 (從正極指向負極：向右為電子受力方向，向左為電場方向) -->
+                        <line x1="875" y1="32" x2="85" y2="32" stroke="rgba(148, 163, 184, 0.3)" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#arrow-field)" />
+                        <rect x="372" y="18" width="216" height="26" rx="13" fill="#0f172a" stroke="rgba(148,163,184,0.25)" />
+                        <text x="480" y="35" text-anchor="middle" fill="#94a3b8" font-size="12" font-weight="500">外加電場方向 E (左)｜電子受力向右 →</text>
+                    </g>
+
+                    <!-- 背景晶格或停車位圖層 -->
+                    <g id="layer-background"></g>
+
+                    <!-- 電洞軌跡殘影與宏觀累積箭頭圖層 -->
+                    <g id="layer-trails"></g>
+
+                    <!-- 粒子（電子與電洞）圖層 -->
+                    <g id="layer-particles"></g>
+
+                    <!-- 動態教學箭頭（微觀右跳 & 宏觀左移）圖層 -->
+                    <g id="layer-arrows"></g>
+                </svg>
+            </div>
+
+            <!-- 操作控制列 -->
+            <div class="px-4 sm:px-6 py-4 bg-slate-950/90 border-t border-slate-800 flex flex-col lg:flex-row items-center justify-between gap-4">
+                <!-- 主要操作按鈕 -->
+                <div class="flex flex-wrap items-center justify-center gap-2.5 w-full lg:w-auto">
+                    <button id="btn-step" onclick="triggerStep()" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 active:scale-95 text-slate-950 font-bold text-sm shadow-lg shadow-sky-500/25 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path></svg>
+                        單步執行（電子右跳）
+                    </button>
+
+                    <button id="btn-auto" onclick="toggleAutoPlay()" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-semibold text-sm shadow-lg shadow-indigo-600/25 transition-all">
+                        <span id="auto-icon">▶</span>
+                        <span id="auto-text">自動播放</span>
+                    </button>
+
+                    <button id="btn-reset" onclick="resetSimulation()" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 font-semibold text-sm border border-slate-700 transition-all">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                        重置
+                    </button>
+                </div>
+
+                <!-- 速度滑桿與提示 -->
+                <div class="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto justify-center lg:justify-end">
+                    <div class="flex items-center gap-3 bg-slate-900 px-3.5 py-2 rounded-xl border border-slate-800">
+                        <span class="text-xs text-slate-400 whitespace-nowrap">動畫速度</span>
+                        <span class="text-xs text-slate-500">慢</span>
+                        <input type="range" id="speed-slider" min="0.4" max="2.0" step="0.2" value="1.0" oninput="updateSpeed(this.value)" class="w-24 sm:w-28">
+                        <span class="text-xs text-slate-500">快</span>
+                        <span id="speed-label" class="text-xs font-mono text-sky-400 w-8 text-right">1.0x</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 即時動態解說面板 -->
+        <section class="rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900 to-slate-800/90 border border-sky-500/30 p-4 sm:p-5 shadow-lg">
+            <div class="flex items-start gap-3.5">
+                <div class="w-9 h-9 rounded-xl bg-sky-500/15 border border-sky-400/30 flex items-center justify-center shrink-0 mt-0.5">
+                    <svg class="w-5 h-5 text-sky-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="text-xs font-bold uppercase tracking-wider text-sky-400">即時動態解說</span>
+                        <span id="interactive-hint" class="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                            💡 提示：也可以直接點擊電洞左邊發光的電子！
+                        </span>
+                    </div>
+                    <p id="narration-text" class="text-sm sm:text-base text-slate-100 leading-relaxed font-medium">
+                        初始狀態：位置 1～6 皆被帶負電的電子（e⁻）填滿，最右側的位置 7 出現一個共價鍵空缺，即為「電洞（h⁺）」。請點擊「單步執行」或直接點擊位置 6 的電子。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 微觀 vs 宏觀 對照總結卡片 -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+            <!-- 微觀實際現象 -->
+            <div class="rounded-2xl bg-slate-900/80 border border-sky-500/30 p-5 shadow-lg hover:border-sky-400/50 transition">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold text-sm border border-sky-400/30">e⁻</span>
+                        <h2 class="text-base sm:text-lg font-bold text-sky-300">微觀視角：實際發生的事</h2>
+                    </div>
+                    <span class="text-xs font-mono px-2.5 py-1 rounded-full bg-sky-950 text-sky-300 border border-sky-700/50">向右跳躍 →</span>
+                </div>
+                <ul class="space-y-2 text-sm text-slate-300 leading-relaxed">
+                    <li class="flex items-start gap-2">
+                        <span class="text-sky-400 mt-1">•</span>
+                        <span>真正有質量且在移動的實體，只有<strong>帶負電的束縛電子</strong>。</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-sky-400 mt-1">•</span>
+                        <span>仔細觀察電子編號（e₁～e₆）：每個電子其實都<strong>只往右跳了一小格</strong>（接力式填補空位），並沒有任何單一電子從最左邊跑到最右邊。</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-sky-400 mt-1">•</span>
+                        <span>整體而言，晶體內的<strong>負電荷淨移向右側正極</strong>。</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- 宏觀等效物理 -->
+            <div class="rounded-2xl bg-slate-900/80 border border-orange-500/30 p-5 shadow-lg hover:border-orange-400/50 transition">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-8 h-8 rounded-lg bg-orange-500/20 text-orange-400 flex items-center justify-center font-bold text-sm border border-orange-400/30">h⁺</span>
+                        <h2 class="text-base sm:text-lg font-bold text-orange-300">宏觀視角：等效物理模型</h2>
+                    </div>
+                    <span class="text-xs font-mono px-2.5 py-1 rounded-full bg-orange-950 text-orange-300 border border-orange-700/50">← 向左移動</span>
+                </div>
+                <ul class="space-y-2 text-sm text-slate-300 leading-relaxed">
+                    <li class="flex items-start gap-2">
+                        <span class="text-orange-400 mt-1">•</span>
+                        <span>因為空缺處少了一個負電子，當地相較於電中性的矽晶格便呈現<strong>等效正電性（+）</strong>。</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-orange-400 mt-1">•</span>
+                        <span>從巨觀軌跡來看，就像有一個<strong>「帶正電的粒子（電洞）」</strong>，從位置 7 一路連續地向左移動到位置 1。</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="text-orange-400 mt-1">•</span>
+                        <span>正電荷向左移動的方向，正好就是電路學中定義的<strong>傳統電流方向（向左）</strong>。</span>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="w-full py-4 text-center text-xs text-slate-500 border-t border-slate-800/60 mt-4">
+        半導體物理視覺化教具 ｜ 支援鍵盤空白鍵 / 右方向鍵單步觸發，R 鍵重置
+    </footer>
+
+    <script>
+        /**
+         * 半導體電子與電洞相對移動互動模擬引擎
+         * 使用 SVG + requestAnimationFrame 實現高畫質向量渲染與拋物線跳躍動畫
+         */
+
+        const TOTAL_SLOTS = 7;
+        // 7 個位置在 SVG (width=960) 中的 X 座標，保留左右電極空間
+        const SLOT_X = [144, 256, 368, 480, 592, 704, 816];
+        const SLOT_Y = 185; // 粒子主要水平線 Y 座標
+
+        // 模擬狀態管理
+        const state = {
+            // slots[i] 儲存電子 ID（1~6），null 表示該位置為電洞
+            // 索引 0~6 對應位置 1~7
+            slots: [1, 2, 3, 4, 5, 6, null],
+            holeIndex: 6,           // 0-based (初始為 6，對應位置 7)
+            holeHistory: [6],       // 記錄電洞走過的位置索引
+            stepCount: 0,
+            mode: 'lattice',        // 'lattice' | 'analogy'
+            showField: true,
+            speed: 1.0,
+            isAnimating: false,
+            isAutoPlaying: false,
+            autoTimer: null,
+            lastMove: null          // { fromIndex, toIndex, electronId }
+        };
+
+        // DOM 元素參照
+        const layerBg = document.getElementById('layer-background');
+        const layerTrails = document.getElementById('layer-trails');
+        const layerParticles = document.getElementById('layer-particles');
+        const layerArrows = document.getElementById('layer-arrows');
+        const layerField = document.getElementById('layer-electric-field');
+
+        const stepCounterEl = document.getElementById('step-counter');
+        const holePosBadgeEl = document.getElementById('hole-pos-badge');
+        const narrationEl = document.getElementById('narration-text');
+        const btnStep = document.getElementById('btn-step');
+        const btnAuto = document.getElementById('btn-auto');
+        const autoIcon = document.getElementById('auto-icon');
+        const autoText = document.getElementById('auto-text');
+        const speedLabel = document.getElementById('speed-label');
+        const legendElectron = document.getElementById('legend-electron');
+        const legendHole = document.getElementById('legend-hole');
+
+        const SVG_NS = 'http://www.w3.org/2000/svg';
+
+        // 輔助函式：建立 SVG 元素
+        function createSvgEl(tag, attrs = {}) {
+            const el = document.createElementNS(SVG_NS, tag);
+            for (const [k, v] of Object.entries(attrs)) {
+                el.setAttribute(k, v);
+            }
+            return el;
+        }
+
+        // 緩動函式 (EaseInOutCubic) 讓跳躍更自然
+        function easeInOutCubic(t) {
+            return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        }
+
+        /**
+         * 繪製背景（矽晶格共價鍵模式 或 停車位/座位比喻模式）
+         */
+        function renderBackground() {
+            layerBg.innerHTML = '';
+
+            if (state.mode === 'lattice') {
+                // 共價鍵水平連結線
+                const bondLine = createSvgEl('line', {
+                    x1: SLOT_X[0] - 30,
+                    y1: SLOT_Y,
+                    x2: SLOT_X[TOTAL_SLOTS - 1] + 30,
+                    y2: SLOT_Y,
+                    stroke: '#334155',
+                    'stroke-width': '4',
+                    'stroke-dasharray': '8 6'
+                });
+                layerBg.appendChild(bondLine);
+
+                // 底部矽原子 (Si) 晶格結構連線
+                const siY = 262;
+                const latticeBar = createSvgEl('line', {
+                    x1: SLOT_X[0],
+                    y1: siY,
+                    x2: SLOT_X[TOTAL_SLOTS - 1],
+                    y2: siY,
+                    stroke: '#1e293b',
+                    'stroke-width': '6'
+                });
+                layerBg.appendChild(latticeBar);
+
+                for (let i = 0; i < TOTAL_SLOTS; i++) {
+                    const x = SLOT_X[i];
+
+                    // 共價鍵垂直連接線 (連到 Si 原子)
+                    layerBg.appendChild(createSvgEl('line', {
+                        x1: x, y1: SLOT_Y + 24, x2: x, y2: siY - 18,
+                        stroke: '#334155', 'stroke-width': '2'
+                    }));
+
+                    // 位置槽圓圈底框
+                    layerBg.appendChild(createSvgEl('circle', {
+                        cx: x, cy: SLOT_Y, r: 28,
+                        fill: 'rgba(15, 23, 42, 0.85)',
+                        stroke: '#334155',
+                        'stroke-width': '1.5'
+                    }));
+
+                    // 矽原子核圓圈
+                    layerBg.appendChild(createSvgEl('circle', {
+                        cx: x, cy: siY, r: 19,
+                        fill: '#1e293b',
+                        stroke: '#475569',
+                        'stroke-width': '1.5'
+                    }));
+                    const siText = createSvgEl('text', {
+                        x: x, y: siY + 5,
+                        'text-anchor': 'middle',
+                        fill: '#94a3b8',
+                        'font-size': '13',
+                        'font-weight': '700'
+                    });
+                    siText.textContent = 'Si';
+                    layerBg.appendChild(siText);
+
+                    // 位置編號標籤 (1~7)
+                    const numText = createSvgEl('text', {
+                        x: x, y: siY + 38,
+                        'text-anchor': 'middle',
+                        fill: '#64748b',
+                        'font-size': '12',
+                        'font-weight': '600'
+                    });
+                    numText.textContent = `位置 ${i + 1}`;
+                    layerBg.appendChild(numText);
+                }
+            } else {
+                // 停車位 / 大風吹座位比喻模式
+                // 停車場底板
+                layerBg.appendChild(createSvgEl('rect', {
+                    x: 82, y: 128, width: 796, height: 118, rx: 14,
+                    fill: 'rgba(15, 23, 42, 0.65)',
+                    stroke: '#334155',
+                    'stroke-width': '2'
+                }));
+
+                for (let i = 0; i < TOTAL_SLOTS; i++) {
+                    const x = SLOT_X[i];
+                    // 每個車位框格
+                    layerBg.appendChild(createSvgEl('rect', {
+                        x: x - 46, y: 138, width: 92, height: 96, rx: 10,
+                        fill: 'rgba(30, 41, 59, 0.5)',
+                        stroke: '#475569',
+                        'stroke-width': '1.5',
+                        'stroke-dasharray': '5 4'
+                    }));
+
+                    // 車位編號牌
+                    layerBg.appendChild(createSvgEl('rect', {
+                        x: x - 26, y: 254, width: 52, height: 22, rx: 6,
+                        fill: '#1e293b',
+                        stroke: '#334155'
+                    }));
+                    const numText = createSvgEl('text', {
+                        x: x, y: 269,
+                        'text-anchor': 'middle',
+                        fill: '#94a3b8',
+                        'font-size': '12',
+                        'font-weight': '700'
+                    });
+                    numText.textContent = `車位 ${i + 1}`;
+                    layerBg.appendChild(numText);
+                }
+            }
+        }
+
+        /**
+         * 繪製電洞走過的殘影與底部宏觀累積移動箭頭
+         */
+        function renderTrails() {
+            layerTrails.innerHTML = '';
+
+            // 繪製過去電洞停留過的微弱殘影
+            for (let k = 0; k < state.holeHistory.length - 1; k++) {
+                const idx = state.holeHistory[k];
+                const x = SLOT_X[idx];
+                // 漸淡透明度，越久遠越淡
+                const opacity = Math.max(0.18, 0.45 - (state.holeHistory.length - 2 - k) * 0.06);
+
+                layerTrails.appendChild(createSvgEl('circle', {
+                    cx: x, cy: SLOT_Y, r: 32,
+                    fill: 'none',
+                    stroke: '#fb923c',
+                    'stroke-width': '1.5',
+                    'stroke-dasharray': '4 4',
+                    opacity: opacity
+                }));
+            }
+
+            // 如果電洞已經移動過（步數 > 0），在最下方繪製一條「宏觀等效累積路徑」橘紅色箭頭
+            if (state.stepCount > 0) {
+                const startX = SLOT_X[6]; // 位置 7
+                const endX = SLOT_X[state.holeIndex];
+                const y = 342;
+
+                // 起點圓點
+                layerTrails.appendChild(createSvgEl('circle', {
+                    cx: startX, cy: y, r: 4.5,
+                    fill: '#fb923c'
+                }));
+
+                // 宏觀向左虛線箭頭
+                layerTrails.appendChild(createSvgEl('line', {
+                    x1: startX, y1: y,
+                    x2: endX + 6, y2: y,
+                    stroke: '#fb923c',
+                    'stroke-width': '3',
+                    'stroke-dasharray': '7 4',
+                    'marker-end': 'url(#arrow-orange)',
+                    filter: 'url(#glow-orange)'
+                }));
+
+                // 標籤背景與文字
+                const midX = (startX + endX) / 2;
+                const labelWidth = 230;
+                layerTrails.appendChild(createSvgEl('rect', {
+                    x: midX - labelWidth / 2, y: y + 10,
+                    width: labelWidth, height: 24, rx: 12,
+                    fill: 'rgba(124, 45, 18, 0.75)',
+                    stroke: 'rgba(251, 146, 60, 0.6)',
+                    'stroke-width': '1'
+                }));
+
+                const lbl = createSvgEl('text', {
+                    x: midX, y: y + 26,
+                    'text-anchor': 'middle',
+                    fill: '#ffedd5',
+                    'font-size': '12',
+                    'font-weight': '700'
+                });
+                lbl.textContent = `← 宏觀等效：電洞 (h⁺) 已向左移動 ${state.stepCount} 格`;
+                layerTrails.appendChild(lbl);
+            }
+        }
+
+        /**
+         * 建立單一電子群組 (根據目前模式切換球體或車輛圖示)
+         */
+        function createElectronGroup(electronId, x, y, isClickable) {
+            const g = createSvgEl('g', {
+                transform: `translate(${x}, ${y})`
+            });
+
+            if (isClickable) {
+                g.style.cursor = 'pointer';
+                g.setAttribute('role', 'button');
+                g.setAttribute('aria-label', `點擊讓電子 ${electronId} 向右跳躍`);
+                g.addEventListener('click', () => triggerStep());
+
+                // 呼吸外環提示可點擊
+                g.appendChild(createSvgEl('circle', {
+                    cx: 0, cy: 0, r: 30,
+                    fill: 'none',
+                    stroke: '#38bdf8',
+                    'stroke-width': '2',
+                    class: 'clickable-ring'
+                }));
+
+                // 上方小提示標籤
+                const tipG = createSvgEl('g', { transform: 'translate(0, -45)' });
+                tipG.appendChild(createSvgEl('rect', {
+                    x: -32, y: -11, width: 64, height: 20, rx: 10,
+                    fill: 'rgba(2, 132, 199, 0.9)',
+                    stroke: '#7dd3fc',
+                    'stroke-width': '1'
+                }));
+                const tipText = createSvgEl('text', {
+                    x: 0, y: 3,
+                    'text-anchor': 'middle',
+                    fill: '#ffffff',
+                    'font-size': '11',
+                    'font-weight': '700'
+                });
+                tipText.textContent = '點我右跳';
+                tipG.appendChild(tipText);
+                g.appendChild(tipG);
+            }
+
+            if (state.mode === 'lattice') {
+                // 發光藍色電子球
+                g.appendChild(createSvgEl('circle', {
+                    cx: 0, cy: 0, r: 22,
+                    fill: isClickable ? 'url(#grad-electron-active)' : 'url(#grad-electron)',
+                    filter: 'url(#glow-blue)'
+                }));
+
+                // 內文字 e⁻
+                const txt = createSvgEl('text', {
+                    x: 0, y: 4,
+                    'text-anchor': 'middle',
+                    fill: '#082f49',
+                    'font-size': '15',
+                    'font-weight': '900'
+                });
+                txt.textContent = `e⁻`;
+                g.appendChild(txt);
+
+                // 右下角微編號 (幫助辨識每個電子只跳一格)
+                const subBg = createSvgEl('circle', {
+                    cx: 16, cy: 16, r: 9,
+                    fill: '#0f172a',
+                    stroke: '#38bdf8',
+                    'stroke-width': '1'
+                });
+                const subTxt = createSvgEl('text', {
+                    x: 16, y: 19.5,
+                    'text-anchor': 'middle',
+                    fill: '#bae6fd',
+                    'font-size': '10',
+                    'font-weight': '700'
+                });
+                subTxt.textContent = electronId;
+                g.appendChild(subBg);
+                g.appendChild(subTxt);
+            } else {
+                // 車輛比喻圖示 (簡潔科技感小車 SVG)
+                g.appendChild(createSvgEl('rect', {
+                    x: -30, y: -16, width: 60, height: 32, rx: 10,
+                    fill: 'url(#grad-electron)',
+                    filter: 'url(#glow-blue)'
+                }));
+                // 車窗
+                g.appendChild(createSvgEl('rect', {
+                    x: -14, y: -10, width: 28, height: 14, rx: 4,
+                    fill: '#0c4a6e'
+                }));
+                // 車頭燈 (右側)
+                g.appendChild(createSvgEl('rect', {
+                    x: 26, y: -10, width: 4, height: 6, rx: 1,
+                    fill: '#fef08a'
+                }));
+                g.appendChild(createSvgEl('rect', {
+                    x: 26, y: 4, width: 4, height: 6, rx: 1,
+                    fill: '#fef08a'
+                }));
+                // 車輛編號
+                const carTxt = createSvgEl('text', {
+                    x: 0, y: 1,
+                    'text-anchor': 'middle',
+                    fill: '#e0f2fe',
+                    'font-size': '11',
+                    'font-weight': '800'
+                });
+                carTxt.textContent = `車#${electronId}`;
+                g.appendChild(carTxt);
+            }
+
+            return g;
+        }
+
+        /**
+         * 建立電洞群組
+         */
+        function createHoleGroup(x, y) {
+            const g = createSvgEl('g', {
+                transform: `translate(${x}, ${y})`
+            });
+
+            if (state.mode === 'lattice') {
+                // 外層發光虛線光圈 (旋轉)
+                g.appendChild(createSvgEl('circle', {
+                    cx: 0, cy: 0, r: 24,
+                    fill: 'rgba(251, 146, 60, 0.14)',
+                    stroke: '#fb923c',
+                    'stroke-width': '3',
+                    'stroke-dasharray': '7 5',
+                    filter: 'url(#glow-orange)',
+                    class: 'hole-spin'
+                }));
+
+                // 內部 + 號與 h⁺
+                const txt = createSvgEl('text', {
+                    x: 0, y: 5,
+                    'text-anchor': 'middle',
+                    fill: '#fdba74',
+                    'font-size': '16',
+                    'font-weight': '900'
+                });
+                txt.textContent = 'h⁺';
+                g.appendChild(txt);
+            } else {
+                // 空車位標示
+                g.appendChild(createSvgEl('rect', {
+                    x: -34, y: -22, width: 68, height: 44, rx: 10,
+                    fill: 'rgba(251, 146, 60, 0.15)',
+                    stroke: '#fb923c',
+                    'stroke-width': '2.5',
+                    'stroke-dasharray': '6 4',
+                    filter: 'url(#glow-orange)'
+                }));
+                const txt = createSvgEl('text', {
+                    x: 0, y: -2,
+                    'text-anchor': 'middle',
+                    fill: '#fdba74',
+                    'font-size': '12',
+                    'font-weight': '800'
+                });
+                txt.textContent = '空車位';
+                const sub = createSvgEl('text', {
+                    x: 0, y: 14,
+                    'text-anchor': 'middle',
+                    fill: '#fb923c',
+                    'font-size': '11',
+                    'font-weight': '700'
+                });
+                sub.textContent = '(電洞 +)';
+                g.appendChild(txt);
+                g.appendChild(sub);
+            }
+
+            return g;
+        }
+
+        /**
+         * 繪製靜態粒子 (非動畫期間)
+         */
+        function renderParticles(skipIndex = -1) {
+            layerParticles.innerHTML = '';
+
+            for (let i = 0; i < TOTAL_SLOTS; i++) {
+                if (i === skipIndex) continue;
+                const x = SLOT_X[i];
+                const electronId = state.slots[i];
+
+                if (electronId === null) {
+                    layerParticles.appendChild(createHoleGroup(x, SLOT_Y));
+                } else {
+                    // 只有位於電洞正左方的電子，且目前非動畫狀態，才顯示可點擊高亮
+                    const isClickable = (!state.isAnimating && i === state.holeIndex - 1);
+                    layerParticles.appendChild(createElectronGroup(electronId, x, SLOT_Y, isClickable));
+                }
+            }
+        }
+
+        /**
+         * 繪製最近一次移動的微觀（藍弧右）與宏觀（橘直左）雙重對比箭頭
+         */
+        function renderStepArrows(fromIdx, toIdx, progress = 1) {
+            layerArrows.innerHTML = '';
+            if (fromIdx === null || toIdx === null) return;
+
+            const xLeft = SLOT_X[fromIdx];
+            const xRight = SLOT_X[toIdx];
+            const midX = (xLeft + xRight) / 2;
+
+            // 1. 微觀實際路徑：藍色拋物線弧形箭頭向右 (在粒子上方)
+            const arcPath = `M ${xLeft} ${SLOT_Y - 34} Q ${midX} ${SLOT_Y - 102} ${xRight - 4} ${SLOT_Y - 36}`;
+            const blueArc = createSvgEl('path', {
+                d: arcPath,
+                fill: 'none',
+                stroke: '#38bdf8',
+                'stroke-width': '3',
+                'marker-end': 'url(#arrow-blue)',
+                filter: 'url(#glow-blue)',
+                opacity: Math.min(1, progress * 1.4)
+            });
+            layerArrows.appendChild(blueArc);
+
+            // 微觀標籤
+            const microLabelW = 204;
+            layerArrows.appendChild(createSvgEl('rect', {
+                x: midX - microLabelW / 2, y: SLOT_Y - 114,
+                width: microLabelW, height: 24, rx: 12,
+                fill: 'rgba(12, 74, 110, 0.92)',
+                stroke: '#38bdf8',
+                'stroke-width': '1',
+                opacity: Math.min(1, progress * 1.4)
+            }));
+            const microTxt = createSvgEl('text', {
+                x: midX, y: SLOT_Y - 98,
+                'text-anchor': 'middle',
+                fill: '#e0f2fe',
+                'font-size': '11.5',
+                'font-weight': '700',
+                opacity: Math.min(1, progress * 1.4)
+            });
+            microTxt.textContent = state.mode === 'lattice'
+                ? '實際移動：電子 (e⁻) 向右跳躍 →'
+                : '實際移動：車輛向右開入空位 →';
+            layerArrows.appendChild(microTxt);
+
+            // 2. 單步宏觀等效路徑：橘紅色箭頭向左 (在粒子下方)
+            if (progress > 0.35) {
+                const macroOp = Math.min(1, (progress - 0.35) / 0.65);
+                const arrowY = SLOT_Y + 42;
+                layerArrows.appendChild(createSvgEl('line', {
+                    x1: xRight - 6, y1: arrowY,
+                    x2: xLeft + 8, y2: arrowY,
+                    stroke: '#fb923c',
+                    'stroke-width': '3',
+                    'stroke-dasharray': '5 3',
+                    'marker-end': 'url(#arrow-orange)',
+                    filter: 'url(#glow-orange)',
+                    opacity: macroOp
+                }));
+
+                const macroTxt = createSvgEl('text', {
+                    x: midX, y: arrowY + 17,
+                    'text-anchor': 'middle',
+                    fill: '#fdba74',
+                    'font-size': '11',
+                    'font-weight': '700',
+                    opacity: macroOp
+                });
+                macroTxt.textContent = '← 空缺(h⁺)左移';
+                layerArrows.appendChild(macroTxt);
+            }
+        }
+
+        /**
+         * 更新文字解說與介面狀態
+         */
+        function updateUI() {
+            stepCounterEl.textContent = state.stepCount;
+            holePosBadgeEl.textContent = state.holeIndex + 1;
+
+            // 控制單步按鈕啟用狀態
+            btnStep.disabled = state.isAnimating || state.holeIndex === 0;
+
+            // 更新圖例文字
+            if (state.mode === 'lattice') {
+                legendElectron.textContent = '電子 (e⁻，負電)';
+                legendHole.textContent = '電洞 (h⁺，等效正電)';
+            } else {
+                legendElectron.textContent = '車輛 (比喻電子 e⁻)';
+                legendHole.textContent = '空車位 (比喻電洞 h⁺)';
+            }
+
+            // 更新解說文字
+            if (state.stepCount === 0) {
+                narrationEl.innerHTML = state.mode === 'lattice'
+                    ? `<strong>初始狀態：</strong>位置 1～6 皆填滿帶負電的電子（e⁻），最右側的 <span class="text-orange-400 font-bold">位置 7</span> 為共價鍵空缺（電洞 h⁺）。請點擊「單步執行」或直接點擊位置 6 的電子。`
+                    : `<strong>初始狀態：</strong>車位 1～6 停滿了車子，最右側的 <span class="text-orange-400 font-bold">車位 7</span> 是空的。想像每輛車只能往前（右邊）開一格填補空位！`;
+            } else if (state.holeIndex > 0) {
+                const fromPos = state.lastMove.fromIndex + 1;
+                const toPos = state.lastMove.toIndex + 1;
+                const eId = state.lastMove.electronId;
+
+                narrationEl.innerHTML = state.mode === 'lattice'
+                    ? `<strong>步驟 ${state.stepCount}：</strong>位置 ${fromPos} 的電子（<span class="text-sky-400 font-bold">e⁻ #${eId}</span>）受右側正極吸引，向右跳躍填補位置 ${toPos} 的空缺 → 空缺（<span class="text-orange-400 font-bold">電洞 h⁺</span>）因此出現在 <span class="text-orange-400 font-bold">位置 ${fromPos}</span>！`
+                    : `<strong>步驟 ${state.stepCount}：</strong>車位 ${fromPos} 的 <span class="text-sky-400 font-bold">車 #${eId}</span> 向右開進車位 ${toPos} → <span class="text-orange-400 font-bold">空車位</span>看起來就向左移動到了 <span class="text-orange-400 font-bold">車位 ${fromPos}</span>！`;
+            } else {
+                narrationEl.innerHTML = `<strong>模擬完成（步驟 6 / 6）：</strong>所有 6 個電子各自只向右移動了 1 格，但從宏觀來看，<span class="text-orange-400 font-bold">電洞（帶正電的空缺）已經從位置 7 一路連續移動到了最左邊的位置 1</span>！這就是半導體中「電洞導電」的物理本質。`;
+            }
+        }
+
+        /**
+         * 觸發單步跳躍動畫
+         */
+        function triggerStep() {
+            if (state.isAnimating || state.holeIndex <= 0) return;
+
+            const fromIdx = state.holeIndex - 1;
+            const toIdx = state.holeIndex;
+            const jumpingElectronId = state.slots[fromIdx];
+
+            state.isAnimating = true;
+            btnStep.disabled = true;
+
+            const startX = SLOT_X[fromIdx];
+            const endX = SLOT_X[toIdx];
+            const arcHeight = 68;
+            const duration = 750 / state.speed; // 毫秒
+            const startTime = performance.now();
+
+            // 預先移除起點的靜態電子，改由動畫元素繪製
+            renderParticles(fromIdx);
+
+            // 在起點放入逐漸顯現的新電洞
+            const emergingHole = createHoleGroup(startX, SLOT_Y);
+            emergingHole.setAttribute('opacity', '0');
+            layerParticles.appendChild(emergingHole);
+
+            // 建立跳躍中的電子元素
+            const flyingElectron = createElectronGroup(jumpingElectronId, startX, SLOT_Y, false);
+            layerParticles.appendChild(flyingElectron);
+
+            function animate(now) {
+                const elapsed = now - startTime;
+                const rawT = Math.min(1, elapsed / duration);
+                const easedT = easeInOutCubic(rawT);
+
+                // 計算拋物線座標
+                const curX = startX + (endX - startX) * easedT;
+                const curY = SLOT_Y - arcHeight * Math.sin(Math.PI * rawT);
+
+                flyingElectron.setAttribute('transform', `translate(${curX}, ${curY})`);
+
+                // 起點的新電洞隨著電子離開而顯現
+                emergingHole.setAttribute('opacity', Math.min(1, rawT * 1.3).toFixed(2));
+
+                // 同步繪製動態教學箭頭
+                renderStepArrows(fromIdx, toIdx, rawT);
+
+                if (rawT < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    // 動畫結束，更新資料狀態
+                    state.slots[toIdx] = jumpingElectronId;
+                    state.slots[fromIdx] = null;
+                    state.holeIndex = fromIdx;
+                    state.holeHistory.push(fromIdx);
+                    state.stepCount += 1;
+                    state.lastMove = { fromIndex: fromIdx, toIndex: toIdx, electronId: jumpingElectronId };
+                    state.isAnimating = false;
+
+                    // 重新完整繪製靜態畫面與軌跡
+                    renderTrails();
+                    renderParticles();
+                    renderStepArrows(fromIdx, toIdx, 1);
+                    updateUI();
+
+                    // 如果處於自動播放模式，排程下一步或循環重置
+                    if (state.isAutoPlaying) {
+                        scheduleNextAutoStep();
+                    }
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        /**
+         * 自動播放排程
+         */
+        function scheduleNextAutoStep() {
+            clearTimeout(state.autoTimer);
+            if (!state.isAutoPlaying) return;
+
+            if (state.holeIndex > 0) {
+                const delay = 650 / state.speed;
+                state.autoTimer = setTimeout(() => {
+                    if (state.isAutoPlaying) triggerStep();
+                }, delay);
+            } else {
+                // 到達最左邊後，停頓 2 秒自動重置並繼續示範
+                state.autoTimer = setTimeout(() => {
+                    if (!state.isAutoPlaying) return;
+                    resetSimulation(true); // 保留自動播放狀態
+                    state.autoTimer = setTimeout(() => {
+                        if (state.isAutoPlaying) triggerStep();
+                    }, 500);
+                }, 2200);
+            }
+        }
+
+        /**
+         * 切換自動播放 / 暫停
+         */
+        function toggleAutoPlay() {
+            state.isAutoPlaying = !state.isAutoPlaying;
+            updateAutoButtonUI();
+
+            if (state.isAutoPlaying) {
+                if (state.holeIndex === 0 && !state.isAnimating) {
+                    resetSimulation(true);
+                    setTimeout(() => {
+                        if (state.isAutoPlaying) triggerStep();
+                    }, 350);
+                } else if (!state.isAnimating) {
+                    triggerStep();
+                }
+            } else {
+                clearTimeout(state.autoTimer);
+            }
+        }
+
+        function updateAutoButtonUI() {
+            if (state.isAutoPlaying) {
+                autoIcon.textContent = '⏸';
+                autoText.textContent = '暫停播放';
+                btnAuto.classList.remove('bg-indigo-600', 'hover:bg-indigo-500');
+                btnAuto.classList.add('bg-amber-600', 'hover:bg-amber-500');
+            } else {
+                autoIcon.textContent = '▶';
+                autoText.textContent = '自動播放';
+                btnAuto.classList.remove('bg-amber-600', 'hover:bg-amber-500');
+                btnAuto.classList.add('bg-indigo-600', 'hover:bg-indigo-500');
+            }
+        }
+
+        /**
+         * 重置模擬狀態
+         */
+        function resetSimulation(keepAutoPlay = false) {
+            clearTimeout(state.autoTimer);
+            if (!keepAutoPlay) {
+                state.isAutoPlaying = false;
+                updateAutoButtonUI();
+            }
+
+            state.slots = [1, 2, 3, 4, 5, 6, null];
+            state.holeIndex = 6;
+            state.holeHistory = [6];
+            state.stepCount = 0;
+            state.lastMove = null;
+            state.isAnimating = false;
+
+            layerArrows.innerHTML = '';
+            renderBackground();
+            renderTrails();
+            renderParticles();
+            updateUI();
+        }
+
+        /**
+         * 切換顯示模式（晶格電子 vs 停車位比喻）
+         */
+        function setMode(newMode) {
+            if (state.mode === newMode) return;
+            state.mode = newMode;
+
+            const btnLattice = document.getElementById('btn-mode-lattice');
+            const btnAnalogy = document.getElementById('btn-mode-analogy');
+
+            if (newMode === 'lattice') {
+                btnLattice.className = 'px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all bg-sky-500 text-slate-950 shadow';
+                btnAnalogy.className = 'px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all text-slate-300 hover:text-white';
+            } else {
+                btnAnalogy.className = 'px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all bg-sky-500 text-slate-950 shadow';
+                btnLattice.className = 'px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all text-slate-300 hover:text-white';
+            }
+
+            renderBackground();
+            renderTrails();
+            if (!state.isAnimating) {
+                renderParticles();
+                if (state.lastMove) {
+                    renderStepArrows(state.lastMove.fromIndex, state.lastMove.toIndex, 1);
+                }
+            }
+            updateUI();
+        }
+
+        /**
+         * 開關外加電場電極顯示
+         */
+        function toggleElectricField() {
+            state.showField = document.getElementById('toggle-field').checked;
+            layerField.style.display = state.showField ? 'block' : 'none';
+        }
+
+        /**
+         * 調整動畫速度
+         */
+        function updateSpeed(val) {
+            state.speed = parseFloat(val);
+            speedLabel.textContent = `${state.speed.toFixed(1)}x`;
+        }
+
+        // 鍵盤快捷鍵支援（方便課堂簡報使用）
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowRight') {
+                e.preventDefault();
+                triggerStep();
+            } else if (e.key === 'r' || e.key === 'R') {
+                resetSimulation();
+            }
+        });
+
+        // 頁面載入初始化
+        window.onload = function () {
+            renderBackground();
+            renderTrails();
+            renderParticles();
+            updateUI();
+        };
+    </script>
+</body>
+</html>
