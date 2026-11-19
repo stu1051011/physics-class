@@ -511,7 +511,7 @@
                         'font-size': '12',
                         'font-weight': '700'
                     });
-                    numText.textContent = `車位 ${i + 1}`;
+                    numText.textContent = `冰格 ${i + 1}`;
                     layerBg.appendChild(numText);
                 }
             }
@@ -672,7 +672,7 @@
                     fill: 'url(#grad-electron)',
                     filter: 'url(#glow-blue)'
                 }));
-                // 冰格編號
+                // 冰塊編號
                 const carTxt = createSvgEl('text', {
                     x: 0, y: 1,
                     'text-anchor': 'middle',
@@ -680,7 +680,7 @@
                     'font-size': '11',
                     'font-weight': '800'
                 });
-                carTxt.textContent = `冰格#${electronId}`;
+                carTxt.textContent = `冰塊#${electronId}`;
                 g.appendChild(carTxt);
             }
 
@@ -861,7 +861,7 @@
                 legendElectron.textContent = '電子 (e⁻，負電)';
                 legendHole.textContent = '電洞 (h⁺，等效正電)';
             } else {
-                legendElectron.textContent = '車輛 (比喻電子 e⁻)';
+                legendElectron.textContent = '冰塊 (比喻電子 e⁻)';
                 legendHole.textContent = '空冰格 (比喻電洞 h⁺)';
             }
 
