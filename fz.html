@@ -1,0 +1,2249 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>單晶矽浮區法拉晶製程模擬（Float-Zone / FZ 法）— 動態晶柱生長與區域精煉</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & Noto Sans TC -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #0b1120;
+            color: #e2e8f0;
+        }
+
+        /* 深色科技實驗室網格背景 */
+        .lab-grid {
+            background-image:
+                linear-gradient(to right, rgba(56, 189, 248, 0.045) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(56, 189, 248, 0.045) 1px, transparent 1px);
+            background-size: 28px 28px;
+        }
+
+        /* 自訂滑桿樣式 */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            border-radius: 999px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .slider-rf {
+            background: linear-gradient(90deg, #38bdf8 0%, #60a5fa 10%, #fb923c 44%, #ef4444 84%, #dc2626 100%);
+        }
+        .slider-rf::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 19px;
+            height: 19px;
+            border-radius: 50%;
+            background: #fde047;
+            border: 2px solid #ea580c;
+            box-shadow: 0 0 12px rgba(251, 146, 60, 0.9);
+            transition: transform 0.15s ease;
+        }
+        .slider-rf::-webkit-slider-thumb:hover {
+            transform: scale(1.16);
+        }
+
+        .slider-pull {
+            background: linear-gradient(90deg, #0284c7 0%, #38bdf8 52%, #f59e0b 100%);
+        }
+        .slider-pull::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 19px;
+            height: 19px;
+            border-radius: 50%;
+            background: #e0f2fe;
+            border: 2px solid #0284c7;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.9);
+            transition: transform 0.15s ease;
+        }
+        .slider-pull::-webkit-slider-thumb:hover {
+            transform: scale(1.16);
+        }
+
+        .slider-feed {
+            background: linear-gradient(90deg, #334155 0%, #a855f7 65%, #e879f9 100%);
+        }
+        .slider-feed::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 19px;
+            height: 19px;
+            border-radius: 50%;
+            background: #f3e8ff;
+            border: 2px solid #9333ea;
+            box-shadow: 0 0 12px rgba(192, 132, 252, 0.9);
+            transition: transform 0.15s ease;
+        }
+        .slider-feed::-webkit-slider-thumb:hover {
+            transform: scale(1.16);
+        }
+
+        .stage-btn-active {
+            background: linear-gradient(135deg, rgba(14, 165, 233, 0.28) 0%, rgba(168, 85, 247, 0.22) 100%);
+            border-color: #38bdf8 !important;
+            color: #f8fafc !important;
+            box-shadow: 0 0 16px rgba(56, 189, 248, 0.35);
+        }
+
+        /* 返回實驗室首頁按鈕 */
+        .home-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 10px;
+            background: #1e293b;
+            color: #e2e8f0;
+            border: 1px solid #334155;
+            font-size: 13px;
+            font-weight: 700;
+            text-decoration: none;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+        }
+        .home-btn:hover {
+            background: #334155;
+            border-color: #38bdf8;
+            color: #ffffff;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.28);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col lab-grid selection:bg-sky-500/30 selection:text-sky-200">
+
+    <!-- ==================== 1. 頂部標題列 (Header) ==================== -->
+    <header class="w-full border-b border-[#1e293b] bg-[#0b1120]/92 backdrop-blur-md sticky top-0 z-30">
+        <div class="max-w-[1440px] mx-auto px-4 sm:px-6 py-3 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+            <!-- 左側：圖示與主副標題 -->
+            <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-xl bg-[#111827] border border-[#1e293b] flex items-center justify-center shadow-lg shrink-0">
+                    <!-- 專屬 FZ 懸浮熔融 SVG 圖示 -->
+                    <svg class="w-7 h-7" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="11.5" y="2" width="9" height="8.5" rx="1.5" fill="#475569" stroke="#94a3b8" stroke-width="1"/>
+                        <circle cx="6.8" cy="15.2" r="2.6" fill="#ea580c" stroke="#fed7aa" stroke-width="1"/>
+                        <circle cx="25.2" cy="15.2" r="2.6" fill="#ea580c" stroke="#fed7aa" stroke-width="1"/>
+                        <path d="M12 10.5 C13.2 13 13 17.5 10.5 19.5 L21.5 19.5 C19 17.5 18.8 13 20 10.5 Z" fill="url(#fzIconMelt)"/>
+                        <path d="M10.5 19.5 L21.5 19.5 L21.5 26.5 L17.5 29.5 L14.5 29.5 L10.5 26.5 Z" fill="url(#fzIconIngot)" stroke="#7dd3fc" stroke-width="1"/>
+                        <defs>
+                            <linearGradient id="fzIconMelt" x1="16" y1="10.5" x2="16" y2="19.5" gradientUnits="userSpaceOnUse">
+                                <stop stop-color="#fde047"/>
+                                <stop offset="0.55" stop-color="#fb923c"/>
+                                <stop offset="1" stop-color="#ea580c"/>
+                            </linearGradient>
+                            <linearGradient id="fzIconIngot" x1="10.5" y1="24" x2="21.5" y2="24" gradientUnits="userSpaceOnUse">
+                                <stop stop-color="#0284c7"/>
+                                <stop offset="0.5" stop-color="#e0f2fe"/>
+                                <stop offset="1" stop-color="#0369a1"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-sm sm:text-lg lg:text-xl font-extrabold tracking-tight text-white">
+                        單晶矽浮區法拉晶模擬（Float-Zone / FZ 法）
+                    </h1>
+                    <p class="text-[11px] sm:text-xs text-slate-400 mt-0.5">
+                        無坩堝懸浮熔融・動態晶柱生長・區域精煉 (k₀ &lt; 1) 視覺化
+                    </p>
+                </div>
+            </div>
+
+            <!-- 右側：模式切換、播放/暫停、重頭演示與返回實驗室首頁 -->
+            <div class="flex flex-wrap items-center gap-2 justify-between xl:justify-end">
+                <div class="inline-flex p-1 rounded-xl bg-[#111827] border border-[#1e293b]">
+                    <button id="btn-mode-auto" onclick="setControlMode('auto')" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-[0_0_10px_rgba(56,189,248,0.2)]">
+                        🤖 教學自動演示
+                    </button>
+                    <button id="btn-mode-manual" onclick="setControlMode('manual')" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-slate-200 border border-transparent">
+                        🎛️ 手動物理實驗
+                    </button>
+                </div>
+
+                <button id="btn-play" onclick="togglePlay()" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-950/50 active:scale-95 transition flex items-center gap-1.5">
+                    <span id="play-icon">⏸</span>
+                    <span id="play-text">暫停演示</span>
+                </button>
+
+                <button onclick="resetSimulation()" class="px-3 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 active:scale-95 transition">
+                    ↺ 重頭演示
+                </button>
+
+                <a href="index.html" class="home-btn">🏠 返回實驗室首頁</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- ==================== 主內容區 ==================== -->
+    <main class="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 py-4 flex flex-col gap-4">
+
+        <!-- 2. 六大製程階段快速跳轉列與即時進度條 -->
+        <section class="rounded-2xl bg-[#111827] border border-[#1e293b] p-3.5 shadow-xl flex flex-col gap-2.5">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">六大 FZ 浮區法拉晶製程階段（點擊立即跳轉觀察晶柱生長）</span>
+                <div class="flex items-center gap-2.5">
+                    <span id="mode-status-banner" class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-sky-950/85 text-sky-300 border border-sky-500/35">
+                        🤖 自動演示中：完整呈現晶柱由細頸 → 放肩 → 等徑 → 收尾生長
+                    </span>
+                    <span id="overall-pct-text" class="font-mono text-xs font-extrabold text-cyan-300">0%</span>
+                </div>
+            </div>
+
+            <!-- 整體進度條 -->
+            <div class="w-full h-1.5 bg-[#0b1120] rounded-full overflow-hidden border border-[#1e293b]">
+                <div id="overall-progress-bar" class="h-full bg-gradient-to-r from-orange-500 via-sky-400 to-purple-400 rounded-full transition-all duration-150" style="width: 0%"></div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                <button id="stage-btn-0" onclick="jumpToStage(0)" class="px-2.5 py-2 rounded-xl text-xs font-bold bg-[#0b1120] hover:bg-slate-800/80 text-slate-300 border border-[#1e293b] transition text-left flex flex-col gap-0.5">
+                    <span class="text-orange-400">① 預熱與懸浮熔滴</span>
+                    <span class="text-[10px] text-slate-400 font-normal">0% ~ 12% RF 熔尖</span>
+                </button>
+                <button id="stage-btn-1" onclick="jumpToStage(1)" class="px-2.5 py-2 rounded-xl text-xs font-bold bg-[#0b1120] hover:bg-slate-800/80 text-slate-300 border border-[#1e293b] transition text-left flex flex-col gap-0.5">
+                    <span class="text-amber-400">② 引晶接觸與縮頸</span>
+                    <span class="text-[10px] text-slate-400 font-normal">12% ~ 25% 排差排</span>
+                </button>
+                <button id="stage-btn-2" onclick="jumpToStage(2)" class="px-2.5 py-2 rounded-xl text-xs font-bold bg-[#0b1120] hover:bg-slate-800/80 text-slate-300 border border-[#1e293b] transition text-left flex flex-col gap-0.5">
+                    <span class="text-sky-400">③ 放肩擴大</span>
+                    <span class="text-[10px] text-slate-400 font-normal">25% ~ 40% 擴至 200mm</span>
+                </button>
+                <button id="stage-btn-3" onclick="jumpToStage(3)" class="px-2.5 py-2 rounded-xl text-xs font-bold bg-[#0b1120] hover:bg-slate-800/80 text-slate-300 border border-[#1e293b] transition text-left flex flex-col gap-0.5">
+                    <span class="text-cyan-300">④ 等徑與區域精煉</span>
+                    <span class="text-[10px] text-slate-400 font-normal">40% ~ 78% 晶柱生長</span>
+                </button>
+                <button id="stage-btn-4" onclick="jumpToStage(4)" class="px-2.5 py-2 rounded-xl text-xs font-bold bg-[#0b1120] hover:bg-slate-800/80 text-slate-300 border border-[#1e293b] transition text-left flex flex-col gap-0.5">
+                    <span class="text-purple-400">⑤ 收尾與雜質分離</span>
+                    <span class="text-[10px] text-slate-400 font-normal">78% ~ 90% 濃縮尾錐</span>
+                </button>
+                <button id="stage-btn-5" onclick="jumpToStage(5)" class="px-2.5 py-2 rounded-xl text-xs font-bold bg-[#0b1120] hover:bg-slate-800/80 text-slate-300 border border-[#1e293b] transition text-left flex flex-col gap-0.5">
+                    <span class="text-emerald-400">⑥ 冷卻完成與切片</span>
+                    <span class="text-[10px] text-slate-400 font-normal">90% ~ 100% 8吋晶圓</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- 3. 主視覺區（左 7 右 5 分欄） -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+
+            <!-- ==================== 左側主畫布：760×580 FZ 爐體剖面與動態晶柱生長 (7/12) ==================== -->
+            <article class="lg:col-span-7 rounded-2xl bg-[#111827] border border-sky-500/30 shadow-2xl shadow-black/50 overflow-hidden flex flex-col">
+                <div class="px-4 py-2.5 bg-gradient-to-r from-sky-950/55 via-[#111827] to-purple-950/40 border-b border-[#1e293b] flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-orange-400 shadow-[0_0_8px_#fb923c] animate-pulse"></span>
+                        <h2 class="text-sm sm:text-base font-extrabold text-slate-100">FZ 無坩堝長晶爐剖面（動態晶柱生長模擬）</h2>
+                    </div>
+
+                    <!-- 畫布上方三大快捷開關 -->
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        <button id="btn-toggle-labels" onclick="toggleLabels()" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-sky-500/20 text-sky-300 border border-sky-400/50 hover:bg-sky-500/30 transition">
+                            🏷️ 構造標註：開
+                        </button>
+                        <button id="btn-toggle-rf" onclick="toggleRfField()" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-400/50 hover:bg-indigo-500/30 transition">
+                            🧲 RF 電磁場線：開
+                        </button>
+                        <button id="btn-toggle-slowmo" onclick="toggleSlowMo()" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-600 hover:border-amber-400/60 transition">
+                            🐢 0.4x 慢動作：關
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 760 x 580 防裁切 Canvas 容器 -->
+                <div class="relative flex-1 w-full bg-[#0b1120] p-2 sm:p-2.5 flex items-center justify-center">
+                    <div class="w-full aspect-[76/58] max-h-[620px] relative">
+                        <canvas id="canvas-furnace" class="w-full h-full block rounded-xl"></canvas>
+
+                        <!-- 警示浮層 1：低於 1414°C 熔區凝固鎖死 -->
+                        <div id="alert-freeze" class="hidden absolute top-14 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-20 rounded-xl bg-sky-950/95 border border-cyan-400/80 px-4 py-3 shadow-[0_0_24px_rgba(56,189,248,0.5)] backdrop-blur-md text-center">
+                            <div class="text-xs sm:text-sm font-extrabold text-cyan-200">
+                                ⚠️ 熔區凝固鎖死！（低於矽熔點 1414°C）
+                            </div>
+                            <p class="text-[11px] text-cyan-100/85 mt-1">
+                                RF 感應加熱功率不足，懸浮液態矽已固化停滯，上下傳動軸鎖死。
+                            </p>
+                            <button onclick="recoverStableZone()" class="mt-2.5 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-sky-500 hover:bg-sky-400 text-slate-950 shadow active:scale-95 transition">
+                                🔧 一鍵恢復穩定熔區 (1440°C)
+                            </button>
+                        </div>
+
+                        <!-- 警示浮層 2：超過 1485°C 表面張力失效熔液滴落 -->
+                        <div id="alert-overheat" class="hidden absolute top-14 left-1/2 -translate-x-1/2 w-[92%] max-w-md z-20 rounded-xl bg-red-950/95 border border-red-400/85 px-4 py-3 shadow-[0_0_28px_rgba(239,68,68,0.6)] backdrop-blur-md text-center">
+                            <div class="text-xs sm:text-sm font-extrabold text-red-200">
+                                💥 表面張力失效！懸浮熔融矽液向下滴落
+                            </div>
+                            <p class="text-[11px] text-red-100/85 mt-1">
+                                RF 溫度超過 1485°C 使液態矽表面張力驟降，無法托舉重力而發生漏液崩潰！這正是 FZ 難以突破 8 吋 (200 mm) 的核心物理極限。
+                            </p>
+                            <button onclick="recoverStableZone()" class="mt-2.5 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow active:scale-95 transition">
+                                🔧 一鍵恢復穩定熔區 (1440°C)
+                            </button>
+                        </div>
+
+                        <!-- 階段 ⑥ 完成後一鍵重播浮動膠囊 -->
+                        <div id="replay-banner" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 z-20">
+                            <button onclick="resetSimulation()" class="px-4 py-2 rounded-full text-xs font-extrabold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-[0_0_20px_rgba(16,185,129,0.5)] active:scale-95 transition flex items-center gap-1.5">
+                                <span>✅ 完整 FZ 單晶矽晶柱生長完成！</span>
+                                <span class="underline">↺ 一鍵重播完整演示</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </article>
+
+            <!-- ==================== 右側欄：雙固液界面放大鏡 + 階段解說 + CZ vs. FZ 對照 (5/12) ==================== -->
+            <div class="lg:col-span-5 flex flex-col gap-3.5">
+
+                <!-- 1. 微觀雙固液界面放大鏡 (60fps Canvas) -->
+                <article class="rounded-2xl bg-[#111827] border border-purple-500/35 shadow-2xl shadow-black/50 overflow-hidden flex flex-col">
+                    <div class="px-4 py-2 bg-gradient-to-r from-purple-950/50 via-[#111827] to-amber-950/35 border-b border-[#1e293b] flex items-center justify-between gap-2">
+                        <h2 class="text-xs sm:text-sm font-extrabold text-amber-200">
+                            🔍 雙固液界面微觀放大鏡（區域精煉 k₀ &lt; 1）
+                        </h2>
+                        <span id="micro-status-tag" class="text-[11px] font-mono px-2 py-0.5 rounded-md bg-purple-950/85 text-purple-300 border border-purple-500/40">
+                            RF 預熱熔尖中
+                        </span>
+                    </div>
+                    <div class="p-2 bg-[#090f1d]">
+                        <div class="w-full aspect-[44/21.5] relative">
+                            <canvas id="canvas-micro" class="w-full h-full block rounded-xl border border-[#1e293b] bg-[#0b1120]"></canvas>
+                        </div>
+                    </div>
+                    <div class="px-3.5 py-1.5 bg-[#0b1120]/90 border-t border-[#1e293b] flex flex-wrap items-center justify-between gap-1.5 text-[10.5px] text-slate-400">
+                        <span>⬆ 上界面：多晶崩解熔化</span>
+                        <span class="text-purple-300 font-semibold">● 紫色雜質遇下界面彈回液相</span>
+                        <span>⬇ 下界面：單晶整齊結晶</span>
+                    </div>
+                </article>
+
+                <!-- 2. 當前階段物理解說卡 -->
+                <article class="rounded-2xl bg-[#111827] border border-sky-500/25 p-3.5 shadow-xl flex flex-col gap-2">
+                    <div class="flex items-center justify-between border-b border-[#1e293b] pb-1.5">
+                        <span id="guide-stage-title" class="text-xs font-extrabold text-sky-300">📘 ① 預熱與懸浮熔滴</span>
+                        <span id="guide-stage-en" class="text-[10.5px] font-mono text-slate-400">RF Tip Preheating</span>
+                    </div>
+                    <p id="guide-physics" class="text-xs text-slate-200 leading-relaxed"></p>
+                    <div class="rounded-lg bg-[#0b1120] border border-amber-500/25 px-2.5 py-1.5 text-[11px] text-amber-200/95 leading-relaxed">
+                        <span class="font-extrabold text-amber-400">💡 課堂講解提示：</span>
+                        <span id="guide-tip"></span>
+                    </div>
+                </article>
+
+                <!-- 3. CZ 法 vs. FZ 法 核心差異速查表 -->
+                <article class="flex-1 rounded-2xl bg-[#111827] border border-[#1e293b] p-3.5 shadow-xl flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-200">
+                            ⚖️ CZ 法 vs. FZ 法 核心差異速查表
+                        </h3>
+                        <span class="text-[10px] font-mono text-slate-400">單晶矽成長比較</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-[11px]">
+                            <thead>
+                                <tr class="border-b border-[#1e293b] text-slate-400">
+                                    <th class="py-1.5 pr-2 font-bold">比較項目</th>
+                                    <th class="py-1.5 px-2 font-bold text-orange-300">CZ 柴可拉斯基法</th>
+                                    <th class="py-1.5 pl-2 font-extrabold text-cyan-300 bg-sky-950/35 rounded-tr-lg">FZ 浮區法 (本頁)</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-[#1e293b]/70 text-slate-300">
+                                <tr>
+                                    <td class="py-1.5 pr-2 font-semibold text-slate-400">坩堝使用</td>
+                                    <td class="py-1.5 px-2">石英坩堝 (SiO₂)</td>
+                                    <td class="py-1.5 pl-2 font-bold text-cyan-200 bg-sky-950/20">無（表面張力懸浮）</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-1.5 pr-2 font-semibold text-slate-400">含氧量 O₂</td>
+                                    <td class="py-1.5 px-2">較高 (~10¹⁸ cm⁻³)</td>
+                                    <td class="py-1.5 pl-2 font-bold text-emerald-300 bg-sky-950/20">極低 (&lt; 10¹⁶ cm⁻³)</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-1.5 pr-2 font-semibold text-slate-400">電阻率／純度</td>
+                                    <td class="py-1.5 px-2">1 ~ 100 Ω·cm</td>
+                                    <td class="py-1.5 pl-2 font-bold text-purple-300 bg-sky-950/20">&gt; 1000 Ω·cm (超高純)</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-1.5 pr-2 font-semibold text-slate-400">最大晶圓尺寸</td>
+                                    <td class="py-1.5 px-2 font-semibold text-slate-100">12 吋 (300 mm)</td>
+                                    <td class="py-1.5 pl-2 text-amber-200 bg-sky-950/20">8 吋 (200 mm，表面張力限)</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-1.5 pr-2 font-semibold text-slate-400">主要應用</td>
+                                    <td class="py-1.5 px-2">邏輯 CPU、DRAM 記憶體</td>
+                                    <td class="py-1.5 pl-2 text-sky-200 bg-sky-950/20 rounded-br-lg">高壓 IGBT、功率元件、感測器</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <!-- 4. 底部控制列：手動物理實驗與極限測試 -->
+        <section class="rounded-2xl bg-[#111827] border border-[#1e293b] p-4 shadow-xl flex flex-col gap-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_#fbbf24]"></span>
+                    <h3 class="text-xs sm:text-sm font-extrabold text-slate-200">
+                        🎛️ 手動物理實驗調控列（拖曳任一滑桿即自動進入手動模式，即時雕塑 FZ 晶柱粗細）
+                    </h3>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button onclick="recoverStableZone()" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-950/80 hover:bg-amber-900/80 text-amber-200 border border-amber-500/45 active:scale-95 transition">
+                        🔧 一鍵恢復穩定參數
+                    </button>
+                    <button onclick="resetSimulation()" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 active:scale-95 transition">
+                        ↺ 重頭演示
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- 滑桿 1：RF 感應溫度 / 功率 (1405 ~ 1500 °C) -->
+                <div class="rounded-xl bg-[#0b1120] border border-[#1e293b] p-3 flex flex-col gap-1.5">
+                    <div class="flex items-center justify-between">
+                        <label for="slider-temp" class="text-xs font-bold text-orange-300">🔥 RF 感應溫度 / 功率</label>
+                        <span id="val-temp" class="font-mono text-sm font-extrabold text-amber-300 bg-orange-950/80 px-2 py-0.5 rounded-lg border border-orange-500/35">1440 °C</span>
+                    </div>
+                    <div class="relative pt-1 pb-3.5">
+                        <input type="range" id="slider-temp" min="1405" max="1500" step="1" value="1440" oninput="onParamSlider('temp', this.value)" class="w-full slider-rf">
+                        <!-- 1414°C: (1414-1405)/(1500-1405) = 9.47% -->
+                        <div class="absolute left-[9.47%] bottom-0 -translate-x-1/2 pointer-events-none select-none">
+                            <span class="text-[9.5px] font-mono font-bold text-cyan-300 whitespace-nowrap">▲1414°C 凝固</span>
+                        </div>
+                        <!-- 1485°C: (1485-1405)/(1500-1405) = 84.21% -->
+                        <div class="absolute left-[84.21%] bottom-0 -translate-x-1/2 pointer-events-none select-none">
+                            <span class="text-[9.5px] font-mono font-bold text-red-400 whitespace-nowrap">▲1485°C 滴落</span>
+                        </div>
+                    </div>
+                    <div class="text-[11px] text-slate-400 flex justify-between">
+                        <span>1405°C (過冷鎖死)</span>
+                        <span>1500°C (張力失效滴落)</span>
+                    </div>
+                </div>
+
+                <!-- 滑桿 2：下拉晶柱速度 (0.5 ~ 3.5 mm/min) -->
+                <div class="rounded-xl bg-[#0b1120] border border-[#1e293b] p-3 flex flex-col gap-1.5">
+                    <div class="flex items-center justify-between">
+                        <label for="slider-pull" class="text-xs font-bold text-sky-300">⬇️ 下拉晶柱速度 (Pull Rate)</label>
+                        <span id="val-pull" class="font-mono text-sm font-extrabold text-sky-300 bg-sky-950/80 px-2 py-0.5 rounded-lg border border-sky-500/35">1.8 mm/min</span>
+                    </div>
+                    <div class="flex items-center gap-2 py-1">
+                        <span class="text-[10px] font-mono text-slate-400">0.5</span>
+                        <input type="range" id="slider-pull" min="0.5" max="3.5" step="0.1" value="1.8" oninput="onParamSlider('pull', this.value)" class="flex-1 slider-pull">
+                        <span class="text-[10px] font-mono text-amber-300">3.5</span>
+                    </div>
+                    <div class="text-[11px] text-slate-400 flex justify-between">
+                        <span>⬇ 拉慢 → 晶柱變粗</span>
+                        <span>⬆ 拉快 → 晶柱變細</span>
+                    </div>
+                </div>
+
+                <!-- 滑桿 3：上棒進料速度 (0.5 ~ 3.5 mm/min) -->
+                <div class="rounded-xl bg-[#0b1120] border border-[#1e293b] p-3 flex flex-col gap-1.5">
+                    <div class="flex items-center justify-between">
+                        <label for="slider-feed" class="text-xs font-bold text-purple-300">⏬ 上棒進料速度 (Feed Rate)</label>
+                        <span id="val-feed" class="font-mono text-sm font-extrabold text-purple-300 bg-purple-950/80 px-2 py-0.5 rounded-lg border border-purple-500/35">1.6 mm/min</span>
+                    </div>
+                    <div class="flex items-center gap-2 py-1">
+                        <span class="text-[10px] font-mono text-slate-400">0.5</span>
+                        <input type="range" id="slider-feed" min="0.5" max="3.5" step="0.1" value="1.6" oninput="onParamSlider('feed', this.value)" class="flex-1 slider-feed">
+                        <span class="text-[10px] font-mono text-purple-300">3.5</span>
+                    </div>
+                    <div class="text-[11px] text-slate-400 flex justify-between">
+                        <span>⬇ 進料慢 → 熔區縮減變細</span>
+                        <span>⬆ 進料快 → 補給飽滿變粗</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="w-full py-2.5 text-center text-xs text-slate-500 border-t border-[#1e293b]">
+        半導體製程互動教學實驗室 ｜ Float-Zone (FZ) 無坩堝浮區單晶拉晶 — 動態晶柱生長、區域精煉 (k₀ &lt; 1) 與表面張力極限實驗
+    </footer>
+
+    <!-- ==================== 60fps FZ 動態晶柱生長與雙畫布繪圖引擎 ==================== -->
+    <script>
+        /**
+         * ============================================================================
+         * 單晶矽浮區法 (Float-Zone / FZ) 動態晶柱生長與區域精煉模擬引擎
+         * - 主爐體畫布 (canvas-furnace): 邏輯尺寸 760 x 580（5 層 Z-Order 防裁切標註）
+         * - 雙固液界面微觀放大鏡 (canvas-micro): 邏輯尺寸 440 x 215
+         * ============================================================================
+         */
+
+        const FURNACE_W = 760;
+        const FURNACE_H = 580;
+        const MICRO_W = 440;
+        const MICRO_H = 215;
+
+        const SI_MELT_POINT = 1414;     // 矽熔點 (°C)
+        const OVERHEAT_LIMIT = 1485;    // 表面張力失效極限 (°C)
+        const TARGET_FZ_MM = 200;       // 8 吋標準 FZ 晶圓目標直徑 (mm)
+
+        // 晶柱剖面切片設定：180 層 × 1.18 px ≈ 212.4 px（視覺上極清楚的一整根完整單晶柱）
+        const MAX_SLICES = 180;
+        const SLICE_PX = 1.18;
+        const MAX_LENGTH_MM = 800;      // 對應實體晶柱總長 800 mm
+
+        // 六大階段進度與切片分界
+        const BOUNDS = {
+            neckEnd: 28,       // 0 ~ 27: ② 引晶接觸與縮頸 (12% ~ 25%)
+            shoulderEnd: 60,   // 28 ~ 59: ③ 放肩擴大 (25% ~ 40%)
+            bodyEnd: 152,      // 60 ~ 151: ④ 等徑生長與區域精煉 (40% ~ 78%)
+            tailEnd: 180       // 152 ~ 179: ⑤ 收尾與雜質分離 (78% ~ 90%)
+        };
+
+        // 六大製程階段教學解說文案
+        const STAGE_INFO = [
+            {
+                name: '① 預熱與懸浮熔滴',
+                en: 'RF Tip Preheating (0% ~ 12%)',
+                physics: '上方高純度多晶矽原料棒（含不規則晶界與微量紫色雜質）尖端置於針眼型水冷銅管 RF 感應線圈中。高頻交流電在矽尖端感應渦電流，將局部加熱超過矽熔點 (1414°C) 形成橘紅發光的懸浮液態熔滴；下方單晶晶種就位於熔滴正下方。',
+                tip: '全程完全沒有石英坩堝！液態矽靠「表面張力」與「RF 電磁托舉力」懸浮於半空中，徹底消除石英坩堝造成的氧汙染。'
+            },
+            {
+                name: '② 引晶接觸與縮頸',
+                en: 'Dipping & Dash Necking (12% ~ 25%)',
+                physics: '下方單晶晶種向上輕觸懸浮熔滴完成熱平衡後，立即以較高下拉速度（~3.0 mm/min）向下拉出細長頸部（Dash Neck）。冷晶種接觸高溫熔液產生的紅色差排缺陷線會斜向延伸並排出細頸側壁，獲得零差排完美單晶起點。',
+                tip: '觀察左側「超高純單晶矽晶柱」標註線此刻亮起，並精準黏著在剛長出的細頸側緣跟著晶柱向下生長！'
+            },
+            {
+                name: '③ 放肩擴大',
+                en: 'Shouldering to 200 mm (25% ~ 40%)',
+                physics: '縮頸除錯完成後，適度降低 RF 溫度並減緩下拉速度，同時讓上方多晶矽原料棒開始穩定往下進料補給。下結晶界面散熱加快，使單晶矽晶柱由細頸平滑向外擴張成圓錐肩部，達到 200 mm（8 吋標準 FZ 直徑）。',
+                tip: '對照上方多晶矽原料棒與下方單晶晶柱：上棒開始往下送進熔區，下方則長出對稱光滑的圓錐肩部。'
+            },
+            {
+                name: '④ 等徑生長與區域精煉',
+                en: 'Body Growth & Zone Refining (40% ~ 78%)',
+                physics: '進入最核心的等徑晶柱生長與區域精煉階段！上方多晶矽原料棒持續向下進料並肉眼可見地縮短消耗；液態矽在下結晶界面源源不絕凝固，讓銀藍色單晶矽晶柱不斷向下延伸變長。由於雜質分凝係數 k₀ < 1，紫色雜質不斷被下界面彈回並富集在懸浮熔區中！',
+                tip: '請同時看左側「整根銀藍晶柱不斷長長」與右側「微觀放大鏡紫色雜質遇下界面彈回」！也可拖曳滑桿手動改變晶柱粗細。'
+            },
+            {
+                name: '⑤ 收尾與雜質分離',
+                en: 'Tailing & Impurity Concentration (78% ~ 90%)',
+                physics: '多晶矽原料棒接近消耗殆盡時，加快下拉速度並減緩進料，讓單晶矽晶柱頂端平滑收斂成圓錐尾錐（Tail Cone），避免熱衝擊造成差排倒灌。區域精煉一路掃集的高濃度紫色雜質，全數被濃縮凝固在頂端這小段尾錐中。',
+                tip: '這就是「區域精煉」的精華：把整根原料棒的雜質集中趕到最尾端的小錐體，之後只要切除頂端尾錐就能得到超高純度單晶柱！'
+            },
+            {
+                name: '⑥ 冷卻完成與切片',
+                en: 'Cooling & 8-inch Wafering (90% ~ 100%)',
+                physics: 'RF 感應線圈斷電冷卻，完整呈現一整根 FZ 單晶矽晶柱（單晶晶種 → 細頸 → 放肩 → 超高純等徑晶柱 → 含雜質紫色尾錐）。切除頭尾與含雜質尾段後，以多線金剛石切片機沿青藍虛線切出 8 吋（200 mm）超高電阻率 FZ 矽晶圓！',
+                tip: '含氧量 < 10¹⁶ cm⁻³、電阻率 > 1000 Ω·cm，是電動車高壓 IGBT 功率元件、高壓二極體與精密感測器的首選晶圓。'
+            }
+        ];
+
+        // ============================================================================
+        // 全域模擬狀態
+        // ============================================================================
+        const state = {
+            mode: 'auto',           // 'auto' | 'manual'
+            isPlaying: true,
+            showLabels: true,
+            showRfField: true,
+            slowMo: false,
+
+            stage: 0,               // 0 ~ 5
+            simTime: 0,
+
+            // 三大核心物理參數
+            rfTemp: 1442,           // 1405 ~ 1500 °C
+            pullRate: 1.8,          // 0.5 ~ 3.5 mm/min
+            feedRate: 1.6,          // 0.5 ~ 3.5 mm/min
+
+            // 進度與動態晶柱剖面陣列
+            preheatProgress: 0,     // 階段 ①: 0 ~ 1
+            coolProgress: 0,        // 階段 ⑥: 0 ~ 1
+            // ingotProfile: index 0 = 最底端緊鄰晶種的細頸，last = 最新結晶出的頂端
+            // 元素結構: { diamMm, rPx, impurityLevel, stageTag }
+            ingotProfile: [],
+            sliceAccum: 0,
+            currentDiamMm: 16,
+            meltVolumeFactor: 1.0,  // 受進料速度與拉速比值影響的熔區飽滿度
+
+            // 物理異常狀態
+            isFrozen: false,
+            overheatCrashed: false,
+            dripDrops: [],
+
+            // 視覺旋轉與粒子
+            rotAngle: 0,
+            argonParticles: [],
+            feedImpurities: [],
+            zoneImpurities: [],
+            convectionDots: [],
+
+            // 微觀放大鏡粒子
+            microLiquidAtoms: [],
+            microImpurities: [],
+            microFlashes: [],
+            microScroll: 0
+        };
+
+        // 將直徑 (mm) 映射為畫布半徑 (px)：200 mm -> 48 px
+        function mmToHalfPx(mm) {
+            return Math.max(4.5, (mm / TARGET_FZ_MM) * 48);
+        }
+
+        // 手動物理模式：由 RF 溫度、下拉速度、上棒進料速度計算目標平衡直徑 (mm)
+        function computeManualTargetDiam(pullRate, feedRate, rfTemp) {
+            // 質量守恆概念：上棒進料越快、下拉越慢 -> 晶柱越粗；溫度略高 -> 略微收細
+            const ratio = Math.sqrt(Math.max(0.25, feedRate / Math.max(0.4, pullRate)));
+            const tempAdj = (1440 - rfTemp) * 0.55;
+            const d = 200 * ratio + tempAdj;
+            return Math.max(24, Math.min(245, d));
+        }
+
+        // ============================================================================
+        // 初始化粒子系統
+        // ============================================================================
+        function initParticles() {
+            state.argonParticles = [];
+            for (let i = 0; i < 40; i++) {
+                state.argonParticles.push({
+                    lane: (i % 2 === 0 ? -1 : 1) * (0.38 + Math.random() * 0.56),
+                    y: Math.random(),
+                    speed: 0.13 + Math.random() * 0.08,
+                    size: 1.5 + Math.random() * 1.4,
+                    alpha: 0.35 + Math.random() * 0.45
+                });
+            }
+
+            state.feedImpurities = [];
+            for (let i = 0; i < 30; i++) {
+                state.feedImpurities.push({
+                    rx: (Math.random() - 0.5) * 1.55,
+                    ry: Math.random()
+                });
+            }
+
+            state.zoneImpurities = [];
+            for (let i = 0; i < 24; i++) {
+                state.zoneImpurities.push({
+                    angle: Math.random() * Math.PI * 2,
+                    rX: 0.16 + Math.random() * 0.68,
+                    rY: (Math.random() - 0.5) * 0.72,
+                    speed: 1.1 + Math.random() * 1.2
+                });
+            }
+
+            state.convectionDots = [];
+            for (let i = 0; i < 18; i++) {
+                state.convectionDots.push({
+                    side: i % 2 === 0 ? -1 : 1,
+                    angle: Math.random() * Math.PI * 2,
+                    speed: 1.4 + Math.random() * 0.9
+                });
+            }
+
+            // 微觀雙界面放大鏡粒子 (上界面 y=66, 下界面 y=148)
+            state.microLiquidAtoms = [];
+            for (let i = 0; i < 42; i++) {
+                state.microLiquidAtoms.push({
+                    x: 16 + Math.random() * (MICRO_W - 32),
+                    y: 74 + Math.random() * 66,
+                    vx: (Math.random() - 0.5) * 52,
+                    vy: (Math.random() - 0.5) * 44
+                });
+            }
+
+            state.microImpurities = [];
+            for (let i = 0; i < 12; i++) {
+                state.microImpurities.push({
+                    x: 32 + Math.random() * (MICRO_W - 64),
+                    y: 74 + Math.random() * 62,
+                    vx: (Math.random() - 0.5) * 40,
+                    vy: 20 + Math.random() * 24,
+                    bounceGlow: 0
+                });
+            }
+        }
+
+        // 建立標準 FZ 晶柱剖面陣列（供快速跳轉階段使用）
+        function buildStandardProfile(count) {
+            const arr = [];
+            const { neckEnd, shoulderEnd, bodyEnd, tailEnd } = BOUNDS;
+            for (let i = 0; i < count; i++) {
+                let d = 16, tag = 1, imp = 0;
+                if (i < neckEnd) {
+                    tag = 1;
+                    d = 18 - (i / neckEnd) * 4;
+                } else if (i < shoulderEnd) {
+                    tag = 2;
+                    const t = (i - neckEnd) / (shoulderEnd - neckEnd);
+                    const s = t * t * (3 - 2 * t);
+                    d = 14 + s * (TARGET_FZ_MM - 14);
+                } else if (i < bodyEnd) {
+                    tag = 3;
+                    d = TARGET_FZ_MM + Math.sin(i * 0.25) * 1.2;
+                } else {
+                    tag = 4;
+                    const t = Math.min(1, (i - bodyEnd) / (tailEnd - bodyEnd));
+                    const s = t * t * (3 - 2 * t);
+                    d = TARGET_FZ_MM * (1 - s) + 12 * s;
+                    // 區域精煉濃縮的雜質集中在最頂端尾錐
+                    imp = Math.pow(t, 1.4);
+                }
+                arr.push({ diamMm: d, rPx: mmToHalfPx(d), impurityLevel: imp, stageTag: tag });
+            }
+            return arr;
+        }
+
+        // ============================================================================
+        // 使用者互動控制函式
+        // ============================================================================
+        function setControlMode(mode) {
+            state.mode = mode;
+            const btnAuto = document.getElementById('btn-mode-auto');
+            const btnManual = document.getElementById('btn-mode-manual');
+            const banner = document.getElementById('mode-status-banner');
+
+            if (mode === 'auto') {
+                btnAuto.className = 'px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-sky-500/20 text-sky-300 border border-sky-500/40 shadow-[0_0_10px_rgba(56,189,248,0.2)]';
+                btnManual.className = 'px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-slate-200 border border-transparent';
+                banner.textContent = '🤖 自動演示中：完整呈現晶柱由細頸 → 放肩 → 等徑 → 收尾生長';
+                banner.className = 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-sky-950/85 text-sky-300 border border-sky-500/35';
+                state.overheatCrashed = false;
+                state.isFrozen = false;
+                state.dripDrops = [];
+            } else {
+                btnManual.className = 'px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-[0_0_10px_rgba(251,146,60,0.25)]';
+                btnAuto.className = 'px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-slate-200 border border-transparent';
+                banner.textContent = '🎛️ 手動實驗中：改變下拉與進料速度可即時雕塑晶柱直徑，或測試溫度極限！';
+                banner.className = 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-950/90 text-amber-300 border border-amber-500/45';
+
+                // 若在預熱階段切換手動，自動推進至等徑生長起點方便立即雕塑
+                if (state.stage === 0) {
+                    state.stage = 3;
+                    state.preheatProgress = 1;
+                    state.ingotProfile = buildStandardProfile(BOUNDS.shoulderEnd + 8);
+                    state.currentDiamMm = TARGET_FZ_MM;
+                    state.rfTemp = 1440;
+                    state.pullRate = 1.8;
+                    state.feedRate = 1.8;
+                    syncSlidersFromState();
+                }
+            }
+            updateUI();
+        }
+
+        function togglePlay() {
+            state.isPlaying = !state.isPlaying;
+            if (state.isPlaying && state.stage === 5 && state.coolProgress >= 1) {
+                resetSimulation();
+                return;
+            }
+            updatePlayButtonUI();
+        }
+
+        function updatePlayButtonUI() {
+            const btn = document.getElementById('btn-play');
+            const icon = document.getElementById('play-icon');
+            const text = document.getElementById('play-text');
+            if (state.isPlaying) {
+                icon.textContent = '⏸';
+                text.textContent = '暫停演示';
+                btn.className = 'px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-950/50 active:scale-95 transition flex items-center gap-1.5';
+            } else {
+                icon.textContent = '▶';
+                text.textContent = '繼續演示';
+                btn.className = 'px-3.5 py-2 rounded-xl text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white shadow-lg shadow-sky-950/50 active:scale-95 transition flex items-center gap-1.5';
+            }
+        }
+
+        function resetSimulation() {
+            state.stage = 0;
+            state.preheatProgress = 0;
+            state.coolProgress = 0;
+            state.ingotProfile = [];
+            state.sliceAccum = 0;
+            state.currentDiamMm = 16;
+            state.rfTemp = 1442;
+            state.pullRate = 1.0;
+            state.feedRate = 0.8;
+            state.meltVolumeFactor = 1.0;
+            state.isFrozen = false;
+            state.overheatCrashed = false;
+            state.dripDrops = [];
+            state.microFlashes = [];
+            state.isPlaying = true;
+            updatePlayButtonUI();
+            syncSlidersFromState();
+            updateUI();
+        }
+
+        function jumpToStage(idx) {
+            state.stage = idx;
+            state.sliceAccum = 0;
+            state.coolProgress = 0;
+            state.isFrozen = false;
+            state.overheatCrashed = false;
+            state.dripDrops = [];
+
+            if (idx === 0) {
+                state.preheatProgress = 0.1;
+                state.ingotProfile = [];
+                state.currentDiamMm = 16;
+                state.rfTemp = 1444; state.pullRate = 0.8; state.feedRate = 0.6;
+            } else if (idx === 1) {
+                state.preheatProgress = 1;
+                state.ingotProfile = buildStandardProfile(5);
+                state.currentDiamMm = 17;
+                state.rfTemp = 1446; state.pullRate = 3.0; state.feedRate = 0.7;
+            } else if (idx === 2) {
+                state.preheatProgress = 1;
+                state.ingotProfile = buildStandardProfile(BOUNDS.neckEnd);
+                state.currentDiamMm = 14;
+                state.rfTemp = 1435; state.pullRate = 1.2; state.feedRate = 1.8;
+            } else if (idx === 3) {
+                state.preheatProgress = 1;
+                state.ingotProfile = buildStandardProfile(BOUNDS.shoulderEnd + 10);
+                state.currentDiamMm = TARGET_FZ_MM;
+                state.rfTemp = 1440; state.pullRate = 1.8; state.feedRate = 1.8;
+            } else if (idx === 4) {
+                state.preheatProgress = 1;
+                state.ingotProfile = buildStandardProfile(BOUNDS.bodyEnd);
+                state.currentDiamMm = TARGET_FZ_MM;
+                state.rfTemp = 1448; state.pullRate = 2.9; state.feedRate = 0.7;
+            } else if (idx === 5) {
+                state.preheatProgress = 1;
+                state.ingotProfile = buildStandardProfile(MAX_SLICES);
+                state.currentDiamMm = 12;
+                state.coolProgress = 0.3;
+                state.rfTemp = 1410; state.pullRate = 0.5; state.feedRate = 0.5;
+            }
+
+            state.isPlaying = true;
+            updatePlayButtonUI();
+            syncSlidersFromState();
+            updateUI();
+        }
+
+        function toggleLabels() {
+            state.showLabels = !state.showLabels;
+            const btn = document.getElementById('btn-toggle-labels');
+            btn.textContent = state.showLabels ? '🏷️ 構造標註：開' : '🏷️ 構造標註：關';
+            btn.className = state.showLabels
+                ? 'px-2.5 py-1 rounded-lg text-xs font-bold bg-sky-500/20 text-sky-300 border border-sky-400/50 hover:bg-sky-500/30 transition'
+                : 'px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-400 border border-slate-600 transition';
+        }
+
+        function toggleRfField() {
+            state.showRfField = !state.showRfField;
+            const btn = document.getElementById('btn-toggle-rf');
+            btn.textContent = state.showRfField ? '🧲 RF 電磁場線：開' : '🧲 RF 電磁場線：關';
+            btn.className = state.showRfField
+                ? 'px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-400/50 hover:bg-indigo-500/30 transition'
+                : 'px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-400 border border-slate-600 transition';
+        }
+
+        function toggleSlowMo() {
+            state.slowMo = !state.slowMo;
+            const btn = document.getElementById('btn-toggle-slowmo');
+            btn.textContent = state.slowMo ? '🐢 0.4x 慢動作：開' : '🐢 0.4x 慢動作：關';
+            btn.className = state.slowMo
+                ? 'px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-500/25 text-amber-200 border border-amber-400/60 transition'
+                : 'px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 border border-slate-600 hover:border-amber-400/60 transition';
+        }
+
+        function onParamSlider(param, rawVal) {
+            const val = parseFloat(rawVal);
+            if (state.mode === 'auto') {
+                setControlMode('manual');
+            }
+            if (param === 'temp') state.rfTemp = val;
+            if (param === 'pull') state.pullRate = val;
+            if (param === 'feed') state.feedRate = val;
+            updateUI();
+        }
+
+        function recoverStableZone() {
+            state.rfTemp = 1440;
+            state.pullRate = 1.8;
+            state.feedRate = 1.8;
+            state.isFrozen = false;
+            state.overheatCrashed = false;
+            state.dripDrops = [];
+            state.isPlaying = true;
+            syncSlidersFromState();
+            updatePlayButtonUI();
+            updateUI();
+        }
+
+        function syncSlidersFromState() {
+            document.getElementById('slider-temp').value = Math.round(state.rfTemp);
+            document.getElementById('slider-pull').value = state.pullRate.toFixed(1);
+            document.getElementById('slider-feed').value = state.feedRate.toFixed(1);
+        }
+
+        // ============================================================================
+        // 核心 60fps 物理更新迴圈
+        // ============================================================================
+        function updateSimulation(rawDt) {
+            const dt = rawDt * (state.slowMo ? 0.4 : 1.0);
+            state.simTime += dt;
+
+            // 檢查物理極限（階段 0~4 熔區存在時）
+            const hasActiveMelt = (state.stage < 5);
+            state.isFrozen = (hasActiveMelt && state.rfTemp < SI_MELT_POINT);
+            if (hasActiveMelt && state.rfTemp > OVERHEAT_LIMIT) {
+                state.overheatCrashed = true;
+            }
+
+            // 過熱崩潰滴落特效
+            if (state.overheatCrashed) {
+                if (Math.random() < dt * 13) {
+                    state.dripDrops.push({
+                        x: FURNACE_W / 2 + (Math.random() - 0.5) * 38,
+                        y: 256,
+                        vy: 55 + Math.random() * 55,
+                        r: 3.5 + Math.random() * 4.5,
+                        alpha: 1.0
+                    });
+                }
+                for (let i = state.dripDrops.length - 1; i >= 0; i--) {
+                    const d = state.dripDrops[i];
+                    d.vy += 340 * dt;
+                    d.y += d.vy * dt;
+                    if (d.y > 515) d.alpha -= dt * 4.5;
+                    if (d.alpha <= 0) state.dripDrops.splice(i, 1);
+                }
+            }
+
+            // 旋轉與氬氣粒子
+            if (!state.isFrozen) {
+                state.rotAngle += dt * 2.0;
+            }
+            state.argonParticles.forEach(p => {
+                p.y += p.speed * dt;
+                if (p.y > 1) {
+                    p.y -= 1;
+                    p.lane = (Math.random() < 0.5 ? -1 : 1) * (0.38 + Math.random() * 0.56);
+                }
+            });
+
+            // 熔區熱對流與富集雜質旋轉
+            if (!state.isFrozen && state.stage < 5) {
+                const agil = Math.max(0.4, (state.rfTemp - 1405) / 45);
+                state.convectionDots.forEach(d => {
+                    d.angle += d.speed * agil * dt * (d.side > 0 ? 1 : -1);
+                });
+                state.zoneImpurities.forEach(imp => {
+                    imp.angle += imp.speed * dt;
+                });
+            }
+
+            // 更新微觀雙界面放大鏡粒子
+            updateMicroscopeParticles(dt);
+
+            if (!state.isPlaying || state.isFrozen || state.overheatCrashed) return;
+
+            const { neckEnd, shoulderEnd, bodyEnd, tailEnd } = BOUNDS;
+
+            // ---------------- 六大階段真實晶柱生長 ----------------
+            if (state.stage === 0) {
+                if (state.mode === 'auto') {
+                    state.rfTemp += (1444 - state.rfTemp) * Math.min(1, dt * 2.5);
+                    state.pullRate += (0.8 - state.pullRate) * Math.min(1, dt * 2.5);
+                    state.feedRate += (0.6 - state.feedRate) * Math.min(1, dt * 2.5);
+                    syncSlidersFromState();
+                }
+                state.preheatProgress += dt * 0.34;
+                if (state.preheatProgress >= 1) {
+                    state.preheatProgress = 1;
+                    state.stage = 1;
+                    state.currentDiamMm = 17;
+                    updateUI();
+                }
+            } else if (state.stage >= 1 && state.stage <= 4) {
+                const n = state.ingotProfile.length;
+
+                // 依已長出的切片層數決定階段
+                let nextStage = 1;
+                if (n < neckEnd) nextStage = 1;
+                else if (n < shoulderEnd) nextStage = 2;
+                else if (n < bodyEnd) nextStage = 3;
+                else nextStage = 4;
+
+                if (nextStage !== state.stage) {
+                    state.stage = nextStage;
+                    updateUI();
+                }
+
+                // 自動演示模式下平滑調控各階段 RF 溫度、下拉與進料速度
+                if (state.mode === 'auto') {
+                    const presets = {
+                        1: { t: 1446, p: 3.0, f: 0.7 }, // ② 縮頸：快拉低進料
+                        2: { t: 1435, p: 1.2, f: 1.8 }, // ③ 放肩：慢拉增進料
+                        3: { t: 1440, p: 1.8, f: 1.8 }, // ④ 等徑：穩定 200mm
+                        4: { t: 1448, p: 2.9, f: 0.7 }  // ⑤ 收尾：快拉減進料
+                    };
+                    const tgt = presets[state.stage];
+                    state.rfTemp += (tgt.t - state.rfTemp) * Math.min(1, dt * 3.0);
+                    state.pullRate += (tgt.p - state.pullRate) * Math.min(1, dt * 3.0);
+                    state.feedRate += (tgt.f - state.feedRate) * Math.min(1, dt * 3.0);
+                    syncSlidersFromState();
+                }
+
+                // 熔區飽滿度受進料/拉速比影響
+                const targetVol = Math.max(0.7, Math.min(1.35, state.feedRate / Math.max(0.6, state.pullRate)));
+                state.meltVolumeFactor += (targetVol - state.meltVolumeFactor) * Math.min(1, dt * 2.5);
+
+                // 上方多晶矽內的紫色雜質隨進料速度穩定向下送入熔區
+                state.feedImpurities.forEach(imp => {
+                    imp.ry += dt * (0.04 + state.feedRate * 0.04);
+                    if (imp.ry > 1) {
+                        imp.ry -= 1;
+                        imp.rx = (Math.random() - 0.5) * 1.55;
+                    }
+                });
+
+                // 依據下拉速度逐幀生成新的結晶切片層
+                const slicesPerSec = 5.5 + state.pullRate * 4.5;
+                state.sliceAccum += dt * slicesPerSec;
+
+                while (state.sliceAccum >= 1 && state.ingotProfile.length < MAX_SLICES) {
+                    state.sliceAccum -= 1;
+                    const idx = state.ingotProfile.length;
+                    let impLevel = 0;
+
+                    if (state.mode === 'auto') {
+                        if (idx < neckEnd) {
+                            state.currentDiamMm = 18 - (idx / neckEnd) * 4;
+                        } else if (idx < shoulderEnd) {
+                            const t = (idx - neckEnd) / (shoulderEnd - neckEnd);
+                            const s = t * t * (3 - 2 * t);
+                            state.currentDiamMm = 14 + s * (TARGET_FZ_MM - 14);
+                        } else if (idx < bodyEnd) {
+                            const targetD = TARGET_FZ_MM + Math.sin(idx * 0.25) * 1.2;
+                            state.currentDiamMm += (targetD - state.currentDiamMm) * 0.28;
+                        } else {
+                            const t = (idx - bodyEnd) / (tailEnd - bodyEnd);
+                            const s = t * t * (3 - 2 * t);
+                            state.currentDiamMm = TARGET_FZ_MM * (1 - s) + 12 * s;
+                            impLevel = Math.pow(t, 1.4);
+                        }
+                    } else {
+                        // 手動模式：真實依下拉與進料速度雕塑正在生長的晶柱直徑
+                        if (idx < neckEnd) {
+                            state.currentDiamMm += (16 - state.currentDiamMm) * 0.2;
+                        } else if (idx < bodyEnd) {
+                            const targetD = computeManualTargetDiam(state.pullRate, state.feedRate, state.rfTemp);
+                            state.currentDiamMm += (targetD - state.currentDiamMm) * 0.14;
+                        } else {
+                            const t = (idx - bodyEnd) / (tailEnd - bodyEnd);
+                            const tailTarget = Math.max(12, state.currentDiamMm * (1 - t * 0.28));
+                            state.currentDiamMm += (tailTarget - state.currentDiamMm) * 0.22;
+                            impLevel = Math.pow(t, 1.4);
+                        }
+                    }
+
+                    state.ingotProfile.push({
+                        diamMm: state.currentDiamMm,
+                        rPx: mmToHalfPx(state.currentDiamMm),
+                        impurityLevel: impLevel,
+                        stageTag: idx < neckEnd ? 1 : (idx < shoulderEnd ? 2 : (idx < bodyEnd ? 3 : 4))
+                    });
+                }
+
+                if (state.ingotProfile.length >= MAX_SLICES) {
+                    state.stage = 5;
+                    state.coolProgress = 0;
+                    updateUI();
+                }
+            } else if (state.stage === 5) {
+                if (state.mode === 'auto') {
+                    state.rfTemp += (1405 - state.rfTemp) * Math.min(1, dt * 1.8);
+                    syncSlidersFromState();
+                }
+                state.coolProgress = Math.min(1, state.coolProgress + dt * 0.42);
+                if (state.coolProgress >= 1) {
+                    state.isPlaying = false;
+                    updatePlayButtonUI();
+                }
+            }
+        }
+
+        // 更新右側微觀雙固液界面放大鏡粒子
+        function updateMicroscopeParticles(dt) {
+            const topY = 66, botY = 148;
+
+            for (let i = state.microFlashes.length - 1; i >= 0; i--) {
+                state.microFlashes[i].t += dt * 2.4;
+                if (state.microFlashes[i].t >= 1) state.microFlashes.splice(i, 1);
+            }
+
+            if (state.stage === 5 || state.isFrozen) return;
+
+            if (state.stage >= 1 && state.stage <= 4 && state.isPlaying && !state.overheatCrashed) {
+                const spY = 20;
+                const prevRow = Math.floor(state.microScroll / spY);
+                state.microScroll += dt * (11 + state.pullRate * 12);
+                if (Math.floor(state.microScroll / spY) > prevRow) {
+                    for (let k = 0; k < 3; k++) {
+                        state.microFlashes.push({
+                            x: 48 + Math.random() * (MICRO_W - 96),
+                            y: botY,
+                            t: 0,
+                            color: 'cyan'
+                        });
+                    }
+                }
+            }
+
+            const therm = 0.75 + Math.max(0, (state.rfTemp - 1414) / 65) * 1.1;
+            state.microLiquidAtoms.forEach(a => {
+                a.x += a.vx * therm * dt;
+                a.y += a.vy * therm * dt;
+                if (a.x < 14) { a.x = 14; a.vx = Math.abs(a.vx); }
+                if (a.x > MICRO_W - 14) { a.x = MICRO_W - 14; a.vx = -Math.abs(a.vx); }
+                if (a.y < topY + 7) { a.y = topY + 7; a.vy = Math.abs(a.vy); }
+                if (a.y > botY - 7) { a.y = botY - 7; a.vy = -Math.abs(a.vy); }
+            });
+
+            // 紫色雜質遇下結晶界面因 k0 < 1 被明顯彈回液相 + 觸發紫色漣漪
+            state.microImpurities.forEach(imp => {
+                imp.x += imp.vx * dt;
+                imp.y += imp.vy * dt;
+                if (imp.bounceGlow > 0) imp.bounceGlow = Math.max(0, imp.bounceGlow - dt * 1.8);
+
+                if (imp.x < 18) { imp.x = 18; imp.vx = Math.abs(imp.vx); }
+                if (imp.x > MICRO_W - 18) { imp.x = MICRO_W - 18; imp.vx = -Math.abs(imp.vx); }
+                if (imp.y < topY + 9) {
+                    imp.y = topY + 9;
+                    imp.vy = 20 + Math.random() * 24;
+                }
+                if (imp.y > botY - 9) {
+                    imp.y = botY - 10;
+                    imp.vy = -(46 + Math.random() * 26);
+                    imp.bounceGlow = 1.0;
+                    state.microFlashes.push({
+                        x: imp.x,
+                        y: botY - 1,
+                        t: 0,
+                        color: 'purple'
+                    });
+                }
+            });
+        }
+
+        // ============================================================================
+        // 共用繪圖小工具
+        // ============================================================================
+        function drawRoundedRect(ctx, x, y, w, h, r) {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + w - r, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+            ctx.lineTo(x + w, y + h - r);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            ctx.lineTo(x + r, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+        }
+
+        function drawAtom(ctx, x, y, r, colorOuter, colorInner, glow = false) {
+            ctx.save();
+            if (glow) {
+                ctx.shadowColor = colorOuter;
+                ctx.shadowBlur = 9;
+            }
+            const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.12, x, y, r);
+            g.addColorStop(0, colorInner);
+            g.addColorStop(1, colorOuter);
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fillStyle = g;
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawRotationArrow(ctx, cx, cy, rx, ry, dir, color, label) {
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = 1.9;
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, rx, ry, 0, 0.16 * Math.PI, 0.84 * Math.PI);
+            ctx.stroke();
+
+            const endA = dir > 0 ? 0.84 * Math.PI : 0.16 * Math.PI;
+            const ax = cx + Math.cos(endA) * rx;
+            const ay = cy + Math.sin(endA) * ry;
+            const tx = -Math.sin(endA) * rx * dir;
+            const ty = Math.cos(endA) * ry * dir;
+            const ang = Math.atan2(ty, tx);
+
+            ctx.beginPath();
+            ctx.moveTo(ax, ay);
+            ctx.lineTo(ax - 6.5 * Math.cos(ang - 0.5), ay - 6.5 * Math.sin(ang - 0.5));
+            ctx.lineTo(ax - 6.5 * Math.cos(ang + 0.5), ay - 6.5 * Math.sin(ang + 0.5));
+            ctx.closePath();
+            ctx.fill();
+
+            if (label) {
+                ctx.font = '700 10px "Noto Sans TC", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.lineWidth = 3.4;
+                ctx.strokeStyle = 'rgba(11, 17, 32, 0.92)';
+                ctx.strokeText(label, cx, cy + ry + 12);
+                ctx.fillStyle = color;
+                ctx.fillText(label, cx, cy + ry + 12);
+            }
+            ctx.restore();
+        }
+
+        /**
+         * 防裁切動態追蹤標註膠囊：
+         * side === 'left': 靠左對齊 x = 14；side === 'right': 靠右對齊 x = FURNACE_W - 14
+         */
+        function drawTrackingCallout(ctx, side, boxY, anchorX, anchorY, text, accent, dimmed = false) {
+            ctx.save();
+            ctx.font = '700 11px "Noto Sans TC", sans-serif';
+            const tw = ctx.measureText(text).width;
+            const boxW = tw + 18;
+            const boxH = 23;
+            const boxX = side === 'left' ? 14 : (FURNACE_W - 14 - boxW);
+            const startX = side === 'left' ? (boxX + boxW) : boxX;
+            const elbowX = side === 'left' ? Math.min(anchorX - 16, boxX + boxW + 20) : Math.max(anchorX + 16, boxX - 20);
+
+            ctx.globalAlpha = dimmed ? 0.42 : 0.96;
+
+            // 導引折線
+            ctx.beginPath();
+            ctx.moveTo(startX, boxY);
+            ctx.lineTo(elbowX, boxY);
+            ctx.lineTo(anchorX, anchorY);
+            ctx.strokeStyle = accent;
+            ctx.lineWidth = dimmed ? 1.2 : 1.5;
+            if (dimmed) ctx.setLineDash([4, 3]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 目標追蹤圓點
+            ctx.beginPath();
+            ctx.arc(anchorX, anchorY, dimmed ? 2.5 : 3.5, 0, Math.PI * 2);
+            ctx.fillStyle = accent;
+            if (!dimmed) {
+                ctx.shadowColor = accent;
+                ctx.shadowBlur = 8;
+            }
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // 深色圓角膠囊底框
+            drawRoundedRect(ctx, boxX, boxY - boxH / 2, boxW, boxH, 7);
+            ctx.fillStyle = 'rgba(11, 17, 32, 0.94)';
+            ctx.fill();
+            ctx.strokeStyle = accent;
+            ctx.lineWidth = 1.2;
+            if (dimmed) ctx.setLineDash([4, 3]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = dimmed ? '#94a3b8' : '#f8fafc';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, boxX + boxW / 2, boxY + 0.5);
+            ctx.restore();
+        }
+
+        // ============================================================================
+        // 畫布 1：760×580 FZ 爐體剖面與動態晶柱生長（嚴格 5 層 Z-Order）
+        // ============================================================================
+        function drawFurnace(ctx) {
+            ctx.save();
+            ctx.clearRect(0, 0, FURNACE_W, FURNACE_H);
+
+            const cx = FURNACE_W / 2; // 380（爐體嚴格置中，左右各有 178px 標註安全區）
+            const chLeft = 186, chRight = 574, chTop = 38, chBottom = 538;
+            const coilY = 236;        // RF 線圈中心高度
+            const upperMeltY = coilY - 18; // 218
+            const lowerMeltY = coilY + 20; // 256
+
+            const consumedRatio = state.ingotProfile.length / MAX_SLICES;
+            const rfOn = (state.stage < 5);
+            const heatNorm = Math.max(0, Math.min(1, (state.rfTemp - 1405) / 90));
+            const glowLevel = rfOn
+                ? (state.isFrozen ? 0.12 : 0.35 + heatNorm * 0.65)
+                : Math.max(0, (1 - state.coolProgress) * 0.35);
+
+            // ==================== 剛體座標鏈計算 ====================
+            // 1. 上方多晶矽原料棒：隨消耗逐漸往下移動並縮短（162px -> 26px）
+            const feedHalfW = 42;
+            const feedLen = Math.max(26, 162 - consumedRatio * 136);
+            const feedDetach = state.stage === 5 ? state.coolProgress * 22 : 0;
+            const feedBottomY = upperMeltY - feedDetach;
+            const feedTopY = feedBottomY - feedLen;
+
+            // 2. 下方單晶矽晶柱 (ingotProfile) 與單晶晶種：剛體緊密連動向下拉長
+            const ingotLenPx = state.ingotProfile.length * SLICE_PX;
+            const seedH = 22;
+            const detachGap = state.stage === 5 ? 6 + state.coolProgress * 18 : 0;
+
+            let ingotTopY;
+            if (state.stage === 0) {
+                // 階段 ①：單晶晶種從下方緩慢靠近懸浮熔滴正下方
+                ingotTopY = 326 - state.preheatProgress * 66;
+            } else {
+                ingotTopY = lowerMeltY + detachGap;
+            }
+            const ingotBottomY = ingotTopY + ingotLenPx;
+            const seedBottomY = ingotBottomY + seedH;
+
+            const targetHalfPx = mmToHalfPx(TARGET_FZ_MM);
+            const showTargetGuide = (state.stage >= 2 && state.stage <= 4);
+
+            // =========================================================================
+            // Layer 1（最底層）：真空/氬氣密閉腔體、熱輻射光暈、氬氣微粒、200mm 虛線
+            // =========================================================================
+            const chGrad = ctx.createLinearGradient(chLeft, 0, chRight, 0);
+            chGrad.addColorStop(0, '#0f172a');
+            chGrad.addColorStop(0.5, '#131e36');
+            chGrad.addColorStop(1, '#0f172a');
+            drawRoundedRect(ctx, chLeft, chTop, chRight - chLeft, chBottom - chTop, 22);
+            ctx.fillStyle = chGrad;
+            ctx.fill();
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 2.8;
+            ctx.stroke();
+
+            // 上下密封驅動法蘭
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(cx - 46, 20, 92, 20);
+            ctx.fillRect(cx - 46, chBottom - 2, 92, 20);
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 1.8;
+            ctx.strokeRect(cx - 46, 20, 92, 20);
+            ctx.strokeRect(cx - 46, chBottom - 2, 92, 20);
+
+            // 中央熱輻射背景光
+            if (glowLevel > 0.02) {
+                const radG = ctx.createRadialGradient(cx, coilY, 16, cx, coilY, 188);
+                radG.addColorStop(0, `rgba(249, 115, 22, ${0.34 * glowLevel})`);
+                radG.addColorStop(0.55, `rgba(234, 88, 12, ${0.12 * glowLevel})`);
+                radG.addColorStop(1, 'rgba(11, 17, 32, 0)');
+                ctx.fillStyle = radG;
+                ctx.fillRect(chLeft + 4, chTop + 4, chRight - chLeft - 8, chBottom - chTop - 8);
+            }
+
+            // 保護氣體 (Ar) 向下流動微粒
+            ctx.save();
+            state.argonParticles.forEach(p => {
+                const py = chTop + 12 + p.y * (chBottom - chTop - 24);
+                const px = cx + p.lane * 172;
+                ctx.beginPath();
+                ctx.moveTo(px, py - 7);
+                ctx.lineTo(px, py);
+                ctx.strokeStyle = `rgba(103, 232, 249, ${p.alpha * 0.55})`;
+                ctx.lineWidth = 1.3;
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(px, py, p.size, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(165, 243, 252, ${p.alpha})`;
+                ctx.fill();
+            });
+            ctx.restore();
+
+            // 200 mm (8 吋 FZ 目標) 兩側垂直虛線（僅畫虛線本體，文字延後至 Layer 4）
+            if (showTargetGuide) {
+                ctx.save();
+                ctx.strokeStyle = 'rgba(56, 189, 248, 0.36)';
+                ctx.lineWidth = 1.2;
+                ctx.setLineDash([6, 4]);
+                ctx.beginPath();
+                ctx.moveTo(cx - targetHalfPx, lowerMeltY + 4);
+                ctx.lineTo(cx - targetHalfPx, 496);
+                ctx.moveTo(cx + targetHalfPx, lowerMeltY + 4);
+                ctx.lineTo(cx + targetHalfPx, 496);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.restore();
+            }
+
+            // =========================================================================
+            // Layer 2（剛體棒材層）：上軸 + 多晶矽原料棒（消耗縮短） & 下軸 + 晶種 + 動態單晶矽晶柱
+            // =========================================================================
+            const shaftGrad = ctx.createLinearGradient(cx - 5, 0, cx + 5, 0);
+            shaftGrad.addColorStop(0, '#475569');
+            shaftGrad.addColorStop(0.5, '#e2e8f0');
+            shaftGrad.addColorStop(1, '#334155');
+
+            // 1. 上進料軸與上夾具
+            ctx.fillStyle = shaftGrad;
+            ctx.fillRect(cx - 5, 16, 10, Math.max(8, feedTopY - 16));
+            drawRoundedRect(ctx, cx - 20, feedTopY - 10, 40, 12, 3);
+            ctx.fillStyle = '#64748b';
+            ctx.fill();
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 1.1;
+            ctx.stroke();
+
+            // 2. 上方多晶矽原料棒（隨生長向下送入消耗變短，含不規則晶界與紫色雜質）
+            ctx.save();
+            const coneH = Math.min(20, feedLen * 0.45);
+            ctx.beginPath();
+            ctx.moveTo(cx - feedHalfW, feedTopY);
+            ctx.lineTo(cx + feedHalfW, feedTopY);
+            ctx.lineTo(cx + feedHalfW, feedBottomY - coneH);
+            ctx.lineTo(cx + 14, feedBottomY);
+            ctx.lineTo(cx - 14, feedBottomY);
+            ctx.lineTo(cx - feedHalfW, feedBottomY - coneH);
+            ctx.closePath();
+
+            const polyGrad = ctx.createLinearGradient(cx - feedHalfW, 0, cx + feedHalfW, 0);
+            polyGrad.addColorStop(0, '#1e293b');
+            polyGrad.addColorStop(0.35, '#475569');
+            polyGrad.addColorStop(0.68, '#64748b');
+            polyGrad.addColorStop(1, '#1e293b');
+            ctx.fillStyle = polyGrad;
+            ctx.fill();
+
+            ctx.save();
+            ctx.clip();
+
+            // 不規則多晶矽晶界紋理
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.72)';
+            ctx.lineWidth = 1.3;
+            const rotShift = ((state.rotAngle * 14) % 44) - 22;
+            for (let gy = feedTopY + 12; gy < feedBottomY; gy += 22) {
+                ctx.beginPath();
+                ctx.moveTo(cx - feedHalfW - 8, gy);
+                ctx.lineTo(cx - 14 + rotShift * 0.35, gy - 7);
+                ctx.lineTo(cx + 12 + rotShift * 0.35, gy + 7);
+                ctx.lineTo(cx + feedHalfW + 8, gy - 3);
+                ctx.stroke();
+            }
+            for (let gx = cx - 26; gx <= cx + 26; gx += 22) {
+                ctx.beginPath();
+                ctx.moveTo(gx + rotShift * 0.25, feedTopY);
+                ctx.lineTo(gx - 7 + rotShift * 0.25, feedTopY + feedLen * 0.5);
+                ctx.lineTo(gx + 5 + rotShift * 0.25, feedBottomY);
+                ctx.stroke();
+            }
+
+            // 散布在多晶矽中的紫色雜質點
+            state.feedImpurities.forEach(imp => {
+                const ix = cx + imp.rx * (feedHalfW - 6);
+                const iy = feedTopY + 5 + imp.ry * Math.max(8, feedLen - 10);
+                drawAtom(ctx, ix, iy, 2.7, '#a855f7', '#f3e8ff', true);
+            });
+
+            // 底部靠近 RF 線圈的橘紅加熱光梯度
+            if (glowLevel > 0.1) {
+                const tipG = ctx.createLinearGradient(0, feedBottomY - 26, 0, feedBottomY);
+                tipG.addColorStop(0, 'rgba(249, 115, 22, 0)');
+                tipG.addColorStop(1, `rgba(251, 146, 60, ${0.78 * glowLevel})`);
+                ctx.fillStyle = tipG;
+                ctx.fillRect(cx - feedHalfW, feedBottomY - 26, feedHalfW * 2, 26);
+            }
+            ctx.restore();
+
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 1.3;
+            ctx.stroke();
+            ctx.restore();
+
+            // 3. 下旋轉傳動軸與下夾具（嚴格接在 seedBottomY 下方）
+            ctx.fillStyle = shaftGrad;
+            ctx.fillRect(cx - 5, seedBottomY + 8, 10, Math.max(10, chBottom + 14 - (seedBottomY + 8)));
+            drawRoundedRect(ctx, cx - 12, seedBottomY - 2, 24, 13, 3);
+            ctx.fillStyle = '#64748b';
+            ctx.fill();
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 1.1;
+            ctx.stroke();
+
+            // 4. 底部單晶晶種（嚴格接在 ingotBottomY ~ seedBottomY）
+            const seedGrad = ctx.createLinearGradient(cx - 4.5, 0, cx + 4.5, 0);
+            seedGrad.addColorStop(0, '#0284c7');
+            seedGrad.addColorStop(0.5, '#e0f2fe');
+            seedGrad.addColorStop(1, '#0369a1');
+            ctx.fillStyle = seedGrad;
+            ctx.fillRect(cx - 4.5, ingotBottomY, 9, seedH);
+
+            // 5. 核心視覺：動態生長的單晶矽晶柱 (ingotProfile)
+            // index 0 在最底端緊鄰晶種（細頸），lastIdx 在最頂端緊鄰下結晶界面
+            if (state.ingotProfile.length > 0) {
+                const lastIdx = state.ingotProfile.length - 1;
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(cx - state.ingotProfile[lastIdx].rPx, ingotTopY);
+                // 左側由上（最新層）往下（細頸）
+                for (let k = lastIdx; k >= 0; k--) {
+                    const y = ingotTopY + (lastIdx - k) * SLICE_PX;
+                    ctx.lineTo(cx - state.ingotProfile[k].rPx, y);
+                }
+                // 右側由下（細頸）往上（最新層）
+                for (let k = 0; k <= lastIdx; k++) {
+                    const y = ingotTopY + (lastIdx - k) * SLICE_PX;
+                    ctx.lineTo(cx + state.ingotProfile[k].rPx, y);
+                }
+                ctx.closePath();
+
+                // 極致純淨的銀藍單晶矽立體光澤漸層
+                const ingotGrad = ctx.createLinearGradient(cx - 56, 0, cx + 56, 0);
+                ingotGrad.addColorStop(0, '#0c4a6e');
+                ingotGrad.addColorStop(0.22, '#38bdf8');
+                ingotGrad.addColorStop(0.45, '#f0f9ff');
+                ingotGrad.addColorStop(0.68, '#7dd3fc');
+                ingotGrad.addColorStop(0.88, '#0284c7');
+                ingotGrad.addColorStop(1, '#082f49');
+                ctx.fillStyle = ingotGrad;
+                ctx.fill();
+
+                ctx.save();
+                ctx.clip();
+
+                // 旋轉立體高光條紋
+                const sheenX = ((state.rotAngle * -18) % 116) + 58 - 58;
+                const shGrad = ctx.createLinearGradient(cx + sheenX - 15, 0, cx + sheenX + 15, 0);
+                shGrad.addColorStop(0, 'rgba(255,255,255,0)');
+                shGrad.addColorStop(0.5, 'rgba(255,255,255,0.34)');
+                shGrad.addColorStop(1, 'rgba(255,255,255,0)');
+                ctx.fillStyle = shGrad;
+                ctx.fillRect(cx - 64, ingotTopY, 128, ingotLenPx);
+
+                // 頂端尾錐（階段 ⑤ 濃縮的紫色含雜質尾段）
+                if (state.ingotProfile.length > BOUNDS.bodyEnd) {
+                    const tailSlices = state.ingotProfile.length - BOUNDS.bodyEnd;
+                    const tailH = tailSlices * SLICE_PX;
+                    const purpGrad = ctx.createLinearGradient(0, ingotTopY, 0, ingotTopY + tailH);
+                    purpGrad.addColorStop(0, 'rgba(168, 85, 247, 0.88)');
+                    purpGrad.addColorStop(0.55, 'rgba(192, 132, 252, 0.45)');
+                    purpGrad.addColorStop(1, 'rgba(168, 85, 247, 0.02)');
+                    ctx.fillStyle = purpGrad;
+                    ctx.fillRect(cx - 64, ingotTopY, 128, tailH);
+
+                    // 尾錐內的紫色富集雜質點
+                    for (let p = 0; p < 12; p++) {
+                        const px = cx + Math.sin(p * 2.3) * 14;
+                        const py = ingotTopY + 4 + (p / 12) * Math.max(8, tailH - 6);
+                        drawAtom(ctx, px, py, 2.3, '#c084fc', '#faf5ff', false);
+                    }
+                }
+
+                // 頂端緊鄰熔區的暖橘反光（階段 ②~⑤）
+                if (glowLevel > 0.1 && state.stage < 5 && !state.isFrozen) {
+                    const topRef = ctx.createLinearGradient(0, ingotTopY, 0, ingotTopY + 24);
+                    topRef.addColorStop(0, `rgba(253, 224, 71, ${0.65 * glowLevel})`);
+                    topRef.addColorStop(1, 'rgba(251, 146, 60, 0)');
+                    ctx.fillStyle = topRef;
+                    ctx.fillRect(cx - 64, ingotTopY, 128, 24);
+                }
+
+                // 細頸區繪製紅色差排線斜向排出側壁
+                const neckCount = Math.min(BOUNDS.neckEnd, state.ingotProfile.length);
+                if (neckCount > 2) {
+                    ctx.strokeStyle = 'rgba(248, 113, 113, 0.92)';
+                    ctx.lineWidth = 1.6;
+                    ctx.beginPath();
+                    ctx.moveTo(cx - 1, ingotBottomY - 2);
+                    ctx.lineTo(cx - 7, ingotBottomY - 14);
+                    ctx.moveTo(cx + 1, ingotBottomY - 5);
+                    ctx.lineTo(cx + 7, ingotBottomY - 19);
+                    ctx.moveTo(cx, ingotBottomY - 9);
+                    ctx.lineTo(cx - 6, ingotBottomY - 24);
+                    ctx.stroke();
+                }
+
+                // 階段 ⑥：等徑主晶柱上繪製青藍色晶圓切片虛線 + 切除線
+                if (state.stage === 5 && state.coolProgress > 0.2) {
+                    const sliceAlpha = Math.min(1, (state.coolProgress - 0.2) / 0.5);
+                    const bodyTopY = ingotTopY + (lastIdx - BOUNDS.bodyEnd) * SLICE_PX;
+                    const bodyBotY = ingotTopY + (lastIdx - BOUNDS.shoulderEnd) * SLICE_PX;
+
+                    // 紫色含雜質尾段切除紅虛線
+                    ctx.strokeStyle = `rgba(232, 121, 249, ${sliceAlpha * 0.95})`;
+                    ctx.lineWidth = 1.8;
+                    ctx.setLineDash([5, 3]);
+                    ctx.beginPath();
+                    ctx.moveTo(cx - 58, bodyTopY);
+                    ctx.lineTo(cx + 58, bodyTopY);
+                    ctx.stroke();
+
+                    // 等徑超高純段青藍切片虛線
+                    ctx.strokeStyle = `rgba(56, 189, 248, ${sliceAlpha * 0.88})`;
+                    ctx.lineWidth = 1.25;
+                    ctx.setLineDash([4, 3]);
+                    for (let sy = bodyTopY + 12; sy < bodyBotY - 6; sy += 13) {
+                        ctx.beginPath();
+                        ctx.moveTo(cx - 54, sy);
+                        ctx.lineTo(cx + 54, sy);
+                        ctx.stroke();
+                    }
+                    ctx.setLineDash([]);
+                }
+
+                ctx.restore(); // 結束晶柱裁切
+
+                ctx.strokeStyle = 'rgba(186, 230, 253, 0.82)';
+                ctx.lineWidth = 1.35;
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // =========================================================================
+            // Layer 3（懸浮熔融區與 RF 線圈層）
+            // =========================================================================
+            if (state.stage < 5) {
+                const topW = 14;
+                const botW = state.ingotProfile.length > 0
+                    ? state.ingotProfile[state.ingotProfile.length - 1].rPx
+                    : (state.stage === 0 ? 11 : 7);
+                const wobble = state.isFrozen ? 0 : Math.sin(state.simTime * 4) * 0.9;
+                const bulgeX = Math.max(topW, botW) * state.meltVolumeFactor + (state.overheatCrashed ? 14 : 8);
+
+                ctx.save();
+                ctx.beginPath();
+                if (state.stage === 0) {
+                    // 階段 ①：懸掛於多晶矽尖端的橘紅發光懸浮熔滴
+                    const dropH = 12 + state.preheatProgress * 26;
+                    ctx.moveTo(cx - topW, upperMeltY - 1);
+                    ctx.bezierCurveTo(cx - topW - 7, upperMeltY + dropH * 0.65, cx - 8, upperMeltY + dropH, cx, upperMeltY + dropH);
+                    ctx.bezierCurveTo(cx + 8, upperMeltY + dropH, cx + topW + 7, upperMeltY + dropH * 0.65, cx + topW, upperMeltY - 1);
+                } else {
+                    // 階段 ②~⑤：無坩堝表面張力托舉的懸浮熔融液橋
+                    ctx.moveTo(cx - topW, upperMeltY - 1);
+                    ctx.bezierCurveTo(cx - topW * 0.9, coilY - 4, cx - bulgeX + wobble, coilY + 8, cx - botW, lowerMeltY + 1);
+                    ctx.lineTo(cx + botW, lowerMeltY + 1);
+                    ctx.bezierCurveTo(cx + bulgeX + wobble, coilY + 8, cx + topW * 0.9, coilY - 4, cx + topW, upperMeltY - 1);
+                }
+                ctx.closePath();
+
+                if (state.isFrozen) {
+                    const iceG = ctx.createLinearGradient(0, upperMeltY, 0, lowerMeltY);
+                    iceG.addColorStop(0, '#64748b');
+                    iceG.addColorStop(0.5, '#93c5fd');
+                    iceG.addColorStop(1, '#334155');
+                    ctx.fillStyle = iceG;
+                    ctx.fill();
+                    ctx.strokeStyle = '#bae6fd';
+                    ctx.lineWidth = 1.6;
+                    ctx.stroke();
+                } else {
+                    const meltG = ctx.createLinearGradient(0, upperMeltY, 0, lowerMeltY);
+                    meltG.addColorStop(0, '#fef08a');
+                    meltG.addColorStop(0.45, '#fb923c');
+                    meltG.addColorStop(0.85, '#f97316');
+                    meltG.addColorStop(1, '#fde047');
+                    ctx.shadowColor = '#fb923c';
+                    ctx.shadowBlur = 20;
+                    ctx.fillStyle = meltG;
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+
+                    ctx.save();
+                    ctx.clip();
+                    // 熔區對流亮點
+                    state.convectionDots.forEach(d => {
+                        const dx = cx + d.side * (botW * 0.42) + Math.cos(d.angle) * (botW * 0.25);
+                        const dy = coilY + 2 + Math.sin(d.angle) * 11;
+                        ctx.beginPath();
+                        ctx.arc(dx, dy, 1.8, 0, Math.PI * 2);
+                        ctx.fillStyle = 'rgba(254, 249, 195, 0.65)';
+                        ctx.fill();
+                    });
+
+                    // 區域精煉富集於懸浮熔區的紫色雜質（隨生長量增加越積越濃！）
+                    const impCount = Math.min(state.zoneImpurities.length, 4 + Math.floor(consumedRatio * 20));
+                    for (let i = 0; i < impCount; i++) {
+                        const imp = state.zoneImpurities[i];
+                        const ix = cx + Math.cos(imp.angle) * Math.max(9, botW * 0.72) * imp.rX;
+                        const iy = coilY + imp.rY * 26;
+                        drawAtom(ctx, ix, iy, 2.9, '#c084fc', '#faf5ff', true);
+                    }
+                    ctx.restore();
+
+                    ctx.strokeStyle = 'rgba(254, 240, 138, 0.86)';
+                    ctx.lineWidth = 1.4;
+                    ctx.stroke();
+                }
+                ctx.restore();
+
+                // 過熱表面張力失效時向下滴落的熔融矽液滴
+                if (state.overheatCrashed) {
+                    state.dripDrops.forEach(d => {
+                        ctx.save();
+                        ctx.globalAlpha = Math.max(0, d.alpha);
+                        ctx.fillStyle = '#fb923c';
+                        ctx.shadowColor = '#ef4444';
+                        ctx.shadowBlur = 10;
+                        ctx.beginPath();
+                        ctx.ellipse(d.x, d.y, d.r * 0.75, d.r * 1.3, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.restore();
+                    });
+                }
+            }
+
+            // 針眼型水冷銅管 RF 感應加熱線圈 + 交變青藍電磁場線
+            const drawRFCoil = () => {
+                const coilInX = 24, coilOutX = 76;
+                ctx.save();
+
+                if (state.showRfField && rfOn && !state.isFrozen) {
+                    const pulse = 0.55 + 0.45 * Math.sin(state.simTime * 7);
+                    ctx.strokeStyle = `rgba(56, 189, 248, ${0.44 * pulse})`;
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([5, 4]);
+                    ctx.lineDashOffset = -state.simTime * 28;
+                    [-1, 1].forEach(side => {
+                        for (let r = 1; r <= 3; r++) {
+                            ctx.beginPath();
+                            ctx.ellipse(cx + side * 48, coilY, 16 + r * 11, 12 + r * 9, 0, 0, Math.PI * 2);
+                            ctx.stroke();
+                        }
+                    });
+                    ctx.setLineDash([]);
+                }
+
+                [-1, 1].forEach(side => {
+                    const xIn = cx + side * coilInX;
+                    const xOut = cx + side * coilOutX;
+
+                    // 連往爐壁的水冷銅管臂
+                    ctx.fillStyle = '#9a3412';
+                    ctx.fillRect(
+                        side > 0 ? xOut - 4 : chLeft + 3,
+                        coilY - 5,
+                        side > 0 ? (chRight - 3 - (xOut - 4)) : (xOut + 4 - (chLeft + 3)),
+                        10
+                    );
+
+                    // 針眼型水冷銅環截面
+                    ctx.beginPath();
+                    ctx.moveTo(xIn, coilY - 6);
+                    ctx.lineTo(xOut, coilY - 12);
+                    ctx.lineTo(xOut, coilY + 12);
+                    ctx.lineTo(xIn, coilY + 6);
+                    ctx.closePath();
+
+                    if (rfOn && !state.isFrozen) {
+                        ctx.shadowColor = '#f97316';
+                        ctx.shadowBlur = 14 * glowLevel;
+                    }
+                    const cg = ctx.createLinearGradient(0, coilY - 12, 0, coilY + 12);
+                    cg.addColorStop(0, '#fed7aa');
+                    cg.addColorStop(0.42, '#ea580c');
+                    cg.addColorStop(1, '#7c2d12');
+                    ctx.fillStyle = cg;
+                    ctx.fill();
+                    ctx.strokeStyle = '#ffedd5';
+                    ctx.lineWidth = 1.2;
+                    ctx.stroke();
+
+                    // 中心水冷孔洞
+                    ctx.shadowBlur = 0;
+                    ctx.beginPath();
+                    ctx.arc(cx + side * 52, coilY, 3.2, 0, Math.PI * 2);
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.fill();
+                });
+                ctx.restore();
+            };
+            drawRFCoil();
+
+            // =========================================================================
+            // Layer 4（高優先指標與放大框層 — 繪製於軸線與晶柱之上，絕不被遮擋！）
+            // =========================================================================
+            // 1. 200 mm (8 吋 FZ 目標) 深色半透明膠囊標籤（置於底部參考區不遮擋軸線）
+            if (showTargetGuide) {
+                ctx.save();
+                const txt = '← 200 mm (8 吋 FZ 目標) →';
+                ctx.font = '700 10.5px Inter, "Noto Sans TC", sans-serif';
+                const pw = ctx.measureText(txt).width + 16;
+                const py = 508;
+                drawRoundedRect(ctx, cx - pw / 2, py - 10, pw, 20, 10);
+                ctx.fillStyle = 'rgba(11, 17, 32, 0.92)';
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+                ctx.lineWidth = 1.1;
+                ctx.stroke();
+                ctx.fillStyle = '#bae6fd';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(txt, cx, py + 0.5);
+                ctx.restore();
+            }
+
+            // 2. 上下旋轉指示箭頭（繪製於軸線上層，加上深色描邊絕不模糊）
+            const topArrowY = Math.max(58, feedTopY - 22);
+            drawRotationArrow(ctx, cx, topArrowY, 24, 6.5, 1, '#cbd5e1', '順時針 ↻');
+            const botArrowY = Math.min(522, seedBottomY + 20);
+            if (!showTargetGuide || botArrowY < 492) {
+                drawRotationArrow(ctx, cx, botArrowY, 24, 6.5, -1, '#38bdf8', '逆時針 ↺');
+            }
+
+            // 3. 雙固液界面黃色虛線放大框（指向懸浮熔融區）
+            const zoomW = 86, zoomH = 48;
+            ctx.save();
+            ctx.strokeStyle = '#fde047';
+            ctx.lineWidth = 1.6;
+            ctx.setLineDash([5, 3]);
+            drawRoundedRect(ctx, cx - zoomW / 2, coilY - zoomH / 2 + 1, zoomW, zoomH, 7);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+
+            // =========================================================================
+            // Layer 5（最頂層 UI 標註層）：防裁切 8 大構造標註 + 階段 ⑥ 浮動晶圓卡 + HUD
+            // =========================================================================
+            // 階段 ⑥ 右側安全區浮動顯示「8 吋超高純 FZ 矽晶圓」預覽卡
+            if (state.stage === 5 && state.coolProgress > 0.22) {
+                drawFloatingFZCard(ctx, Math.min(1, (state.coolProgress - 0.22) / 0.55));
+            }
+
+            // 防裁切動態追蹤構造標註
+            if (state.showLabels) {
+                // 左側 1：上進料軸 (順時針 ↻)
+                drawTrackingCallout(ctx, 'left', 62, cx - 5, 58, '上進料軸 (順時針 ↻)', '#94a3b8', false);
+
+                // 左側 2：多晶矽原料棒 (追蹤剩餘多晶棒實際中段)
+                const feedMidY = (feedTopY + feedBottomY) / 2;
+                drawTrackingCallout(ctx, 'left', Math.max(114, Math.min(182, feedMidY)), cx - feedHalfW + 4, feedMidY, '多晶矽原料棒 (含雜質)', '#cbd5e1', false);
+
+                // 左側 3：針眼型 RF 感應線圈
+                drawTrackingCallout(ctx, 'left', coilY, cx - 76, coilY, '針眼型 RF 感應線圈', '#fb923c', false);
+
+                // 左側 4：超高純單晶矽晶柱（階段 ① 待命淡化，階段 ②～⑥ 精準鎖定已長出晶柱的側緣並跟著移動！）
+                if (ingotLenPx < 8) {
+                    drawTrackingCallout(ctx, 'left', 344, cx - 8, ingotTopY, '超高純單晶矽晶柱 (待引晶)', '#7dd3fc', true);
+                } else {
+                    const lastIdx = state.ingotProfile.length - 1;
+                    // 優先鎖定已長出的等徑段中點，否則鎖定目前晶柱中點
+                    let targetIdx;
+                    if (state.ingotProfile.length > BOUNDS.shoulderEnd + 4) {
+                        const bEnd = Math.min(lastIdx, BOUNDS.bodyEnd - 1);
+                        targetIdx = Math.floor((BOUNDS.shoulderEnd + bEnd) / 2);
+                    } else {
+                        targetIdx = Math.floor(state.ingotProfile.length * 0.5);
+                    }
+                    const targetY = ingotTopY + (lastIdx - targetIdx) * SLICE_PX;
+                    const rAtY = state.ingotProfile[targetIdx].rPx;
+                    const boxY = Math.max(306, Math.min(416, targetY));
+                    drawTrackingCallout(ctx, 'left', boxY, cx - rAtY * 0.85, targetY, '超高純單晶矽晶柱', '#38bdf8', false);
+                }
+
+                // 左側 5：單晶晶種與下旋轉軸 (逆時針 ↺)（逐幀追蹤移動中的晶種中點）
+                const seedMidY = (ingotBottomY + seedBottomY) / 2;
+                drawTrackingCallout(ctx, 'left', 488, cx - 4.5, Math.min(510, seedMidY), '單晶晶種與下軸 (逆時針 ↺)', '#7dd3fc', false);
+
+                // 右側 1：保護氣體 (Ar / 真空腔)
+                drawTrackingCallout(ctx, 'right', 96, cx + 132, 96, '保護氣體 (Ar / 真空腔)', '#67e8f9', false);
+
+                // 右側 2：無坩堝懸浮熔區 (~溫度°C)
+                const meltLabel = state.stage === 5 ? '冷卻完成 (零坩堝殘留)' : `無坩堝懸浮熔區 (~${Math.round(state.rfTemp)}°C)`;
+                drawTrackingCallout(ctx, 'right', 194, cx + 22, upperMeltY + 12, meltLabel, '#fb923c', state.stage === 5);
+
+                // 右側 3：雙固液界面 (放大)（指向黃色虛線放大框）
+                drawTrackingCallout(ctx, 'right', 268, cx + zoomW / 2, coilY + 4, '雙固液界面 (放大)', '#fde047', false);
+
+                // 階段 ⑥ 額外標示：紫色含雜質切除尾段
+                if (state.stage === 5 && state.ingotProfile.length > BOUNDS.bodyEnd) {
+                    drawTrackingCallout(ctx, 'right', 322, cx + 18, ingotTopY + 16, '含雜質尾錐 (切除段)', '#e879f9', false);
+                }
+            }
+
+            // 左上與左下簡潔科技 HUD 監控卡
+            drawFurnaceHUD(ctx);
+
+            ctx.restore();
+        }
+
+        // 階段 ⑥ 右側安全區浮動晶圓預覽卡
+        function drawFloatingFZCard(ctx, alpha) {
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            const x = 588, y = 354, w = 158, h = 166;
+            const wcx = x + w / 2, wcy = y + 60;
+
+            drawRoundedRect(ctx, x, y, w, h, 14);
+            ctx.fillStyle = 'rgba(11, 17, 32, 0.94)';
+            ctx.fill();
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 1.6;
+            ctx.stroke();
+
+            // 8 吋高純度 FZ 矽晶圓圓盤
+            const r = 38;
+            const wg = ctx.createLinearGradient(wcx - r, wcy - r, wcx + r, wcy + r);
+            wg.addColorStop(0, '#0284c7');
+            wg.addColorStop(0.4, '#f0f9ff');
+            wg.addColorStop(0.72, '#38bdf8');
+            wg.addColorStop(1, '#082f49');
+
+            ctx.beginPath();
+            ctx.arc(wcx, wcy, r, 0.53 * Math.PI, 2.47 * Math.PI);
+            ctx.lineTo(wcx, wcy + r - 3.5);
+            ctx.closePath();
+            ctx.fillStyle = wg;
+            ctx.fill();
+
+            ctx.save();
+            ctx.clip();
+            ctx.strokeStyle = 'rgba(15, 23, 42, 0.32)';
+            ctx.lineWidth = 0.8;
+            for (let g = -r; g <= r; g += 10) {
+                ctx.beginPath(); ctx.moveTo(wcx + g, wcy - r); ctx.lineTo(wcx + g, wcy + r); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(wcx - r, wcy + g); ctx.lineTo(wcx + r, wcy + g); ctx.stroke();
+            }
+            ctx.restore();
+
+            ctx.strokeStyle = '#bae6fd';
+            ctx.lineWidth = 1.3;
+            ctx.stroke();
+
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#f8fafc';
+            ctx.font = '800 12px "Noto Sans TC", sans-serif';
+            ctx.fillText('8 吋超高純 FZ 矽晶圓', wcx, y + 118);
+            ctx.fillStyle = '#7dd3fc';
+            ctx.font = '700 10.5px Inter, sans-serif';
+            ctx.fillText('200 mm Wafer', wcx, y + 135);
+            ctx.fillStyle = '#c084fc';
+            ctx.font = '700 10.5px Inter, monospace';
+            ctx.fillText('> 1000 Ω·cm ｜ IGBT', wcx, y + 151);
+            ctx.restore();
+        }
+
+        // 左上與左下簡潔 HUD 監控卡
+        function drawFurnaceHUD(ctx) {
+            ctx.save();
+            // 左上角 HUD：即時直徑 & 已生長長度
+            const curD = state.ingotProfile.length > 0 ? Math.round(state.currentDiamMm) : 0;
+            const curLenMm = Math.round((state.ingotProfile.length / MAX_SLICES) * MAX_LENGTH_MM);
+
+            drawRoundedRect(ctx, 14, 12, 160, 28, 8);
+            ctx.fillStyle = 'rgba(11, 17, 32, 0.9)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+            ctx.lineWidth = 1.1;
+            ctx.stroke();
+            ctx.fillStyle = '#7dd3fc';
+            ctx.font = '800 10.5px Inter, "Noto Sans TC", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`直徑 ${curD}mm ｜ 長 ${curLenMm}mm`, 94, 26.5);
+
+            // 左下角 HUD：含氧量 & 電阻率
+            drawRoundedRect(ctx, 14, FURNACE_H - 44, 166, 34, 8);
+            ctx.fillStyle = 'rgba(11, 17, 32, 0.9)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(52, 211, 153, 0.45)';
+            ctx.lineWidth = 1.1;
+            ctx.stroke();
+            ctx.textAlign = 'left';
+            ctx.font = '700 9.5px Inter, "Noto Sans TC", sans-serif';
+            ctx.fillStyle = '#34d399';
+            ctx.fillText('O₂ 含氧量：< 10¹⁶ cm⁻³', 22, FURNACE_H - 32);
+            ctx.fillStyle = '#d8b4fe';
+            ctx.fillText('電阻率：> 1000 Ω·cm (高純)', 22, FURNACE_H - 18);
+
+            // 右上角狀態膠囊：表面張力平衡提示
+            drawRoundedRect(ctx, FURNACE_W - 178, 12, 164, 28, 8);
+            ctx.fillStyle = 'rgba(11, 17, 32, 0.9)';
+            ctx.fill();
+            ctx.strokeStyle = state.overheatCrashed ? '#ef4444' : (state.isFrozen ? '#38bdf8' : 'rgba(251, 146, 60, 0.5)');
+            ctx.lineWidth = 1.1;
+            ctx.stroke();
+            ctx.textAlign = 'center';
+            ctx.font = '700 10.5px "Noto Sans TC", sans-serif';
+            ctx.fillStyle = state.overheatCrashed ? '#fca5a5' : (state.isFrozen ? '#bae6fd' : '#fde047');
+            const statusLabel = state.overheatCrashed
+                ? '💥 表面張力失效滴落'
+                : (state.isFrozen ? '❄️ 熔區凝固鎖死' : '✨ 表面張力＋電磁力托舉');
+            ctx.fillText(statusLabel, FURNACE_W - 96, 26.5);
+            ctx.restore();
+        }
+
+        // ============================================================================
+        // 畫布 2：微觀雙固液界面放大鏡 (440 x 215)
+        // ============================================================================
+        function drawMicroscope(ctx) {
+            ctx.save();
+            ctx.clearRect(0, 0, MICRO_W, MICRO_H);
+
+            const topY = 66, botY = 148;
+
+            // 上層背景：多晶矽
+            ctx.fillStyle = 'rgba(51, 65, 85, 0.35)';
+            ctx.fillRect(0, 0, MICRO_W, topY);
+
+            // 中層背景：懸浮熔融矽液
+            const midG = ctx.createLinearGradient(0, topY, 0, botY);
+            if (state.stage === 5) {
+                midG.addColorStop(0, 'rgba(30, 41, 59, 0.5)');
+                midG.addColorStop(1, 'rgba(15, 23, 42, 0.6)');
+            } else if (state.isFrozen) {
+                midG.addColorStop(0, 'rgba(56, 189, 248, 0.25)');
+                midG.addColorStop(1, 'rgba(14, 165, 233, 0.2)');
+            } else {
+                midG.addColorStop(0, 'rgba(251, 146, 60, 0.26)');
+                midG.addColorStop(0.5, 'rgba(234, 88, 12, 0.36)');
+                midG.addColorStop(1, 'rgba(251, 146, 60, 0.26)');
+            }
+            ctx.fillStyle = midG;
+            ctx.fillRect(0, topY, MICRO_W, botY - topY);
+
+            // 下層背景：超高純單晶矽
+            const botG = ctx.createLinearGradient(0, botY, 0, MICRO_H);
+            botG.addColorStop(0, 'rgba(14, 165, 233, 0.14)');
+            botG.addColorStop(1, 'rgba(56, 189, 248, 0.25)');
+            ctx.fillStyle = botG;
+            ctx.fillRect(0, botY, MICRO_W, MICRO_H - botY);
+
+            // 1. 上層：多晶矽無序晶粒 + 釋出中的紫色雜質
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(0, 0, MICRO_W, topY);
+            ctx.clip();
+
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.45)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(146, 0); ctx.lineTo(132, topY);
+            ctx.moveTo(298, 0); ctx.lineTo(314, topY);
+            ctx.stroke();
+
+            const jit = (state.stage < 5 && !state.isFrozen) ? 1.6 : 0.2;
+            const angles = [-0.24, 0.17, -0.15];
+            const centers = [72, 220, 372];
+            centers.forEach((gcx, gi) => {
+                ctx.save();
+                ctx.translate(gcx, 33);
+                ctx.rotate(angles[gi]);
+                for (let r = -1; r <= 1; r++) {
+                    for (let c = -2; c <= 2; c++) {
+                        const ax = c * 21 + Math.sin(state.simTime * 11 + c + r) * jit;
+                        const ay = r * 18 + Math.cos(state.simTime * 10 + c) * jit;
+                        const isImp = ((gi === 0 && c === 1 && r === 0) || (gi === 1 && c === -1 && r === 1) || (gi === 2 && c === 0 && r === 0));
+                        if (isImp) drawAtom(ctx, ax, ay, 4.4, '#a855f7', '#f3e8ff', true);
+                        else drawAtom(ctx, ax, ay, 4.0, '#64748b', '#cbd5e1', false);
+                    }
+                }
+                ctx.restore();
+            });
+            ctx.restore();
+
+            // 2. 中層：液態矽原子 + 遇下界面彈回的紫色雜質
+            if (state.stage < 5) {
+                state.microLiquidAtoms.forEach(a => {
+                    drawAtom(ctx, a.x, a.y, 4.2, state.isFrozen ? '#60a5fa' : '#f97316', state.isFrozen ? '#e0f2fe' : '#fde047', !state.isFrozen);
+                });
+
+                state.microImpurities.forEach(imp => {
+                    drawAtom(ctx, imp.x, imp.y, 5.1, '#a855f7', '#faf5ff', true);
+                    if (imp.bounceGlow > 0.15) {
+                        ctx.save();
+                        ctx.globalAlpha = imp.bounceGlow;
+                        ctx.strokeStyle = '#e879f9';
+                        ctx.lineWidth = 1.8;
+                        ctx.beginPath();
+                        ctx.moveTo(imp.x, imp.y + 7);
+                        ctx.lineTo(imp.x, imp.y - 12);
+                        ctx.lineTo(imp.x - 4, imp.y - 7);
+                        ctx.moveTo(imp.x, imp.y - 12);
+                        ctx.lineTo(imp.x + 4, imp.y - 7);
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                });
+            } else {
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '700 11.5px "Noto Sans TC", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('RF 電源已斷電冷卻 — 超高純 FZ 單晶晶柱完成', MICRO_W / 2, (topY + botY) / 2 + 4);
+            }
+
+            // 3. 下層：整齊的超高純單晶矽晶格
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(0, botY, MICRO_W, MICRO_H - botY);
+            ctx.clip();
+
+            const spX = 28, spY = 20;
+            const modY = state.microScroll % spY;
+
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.36)';
+            ctx.lineWidth = 1.4;
+            for (let gx = 24; gx < MICRO_W - 10; gx += spX) {
+                ctx.beginPath(); ctx.moveTo(gx, botY); ctx.lineTo(gx, MICRO_H); ctx.stroke();
+            }
+            for (let gy = botY + modY; gy < MICRO_H + spY; gy += spY) {
+                ctx.beginPath(); ctx.moveTo(14, gy); ctx.lineTo(MICRO_W - 14, gy); ctx.stroke();
+            }
+
+            for (let gy = botY + modY; gy < MICRO_H + spY; gy += spY) {
+                const isFresh = (gy - botY) < 14;
+                for (let gx = 24; gx < MICRO_W - 10; gx += spX) {
+                    drawAtom(ctx, gx, gy, isFresh ? 4.9 : 4.3, isFresh ? '#7dd3fc' : '#38bdf8', '#f0f9ff', isFresh);
+                }
+            }
+            ctx.restore();
+
+            // 4. 雙界面虛線 + 結晶青光與雜質彈回紫光漣漪
+            ctx.save();
+            ctx.setLineDash([6, 4]);
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = 'rgba(251, 146, 60, 0.85)';
+            ctx.beginPath(); ctx.moveTo(0, topY); ctx.lineTo(MICRO_W, topY); ctx.stroke();
+            ctx.strokeStyle = 'rgba(125, 211, 252, 0.85)';
+            ctx.beginPath(); ctx.moveTo(0, botY); ctx.lineTo(MICRO_W, botY); ctx.stroke();
+            ctx.setLineDash([]);
+
+            state.microFlashes.forEach(f => {
+                const alpha = Math.max(0, 1 - f.t);
+                ctx.beginPath();
+                ctx.arc(f.x, f.y, 4 + f.t * 16, 0, Math.PI * 2);
+                ctx.strokeStyle = f.color === 'purple'
+                    ? `rgba(216, 180, 254, ${alpha})`
+                    : `rgba(125, 211, 252, ${alpha})`;
+                ctx.lineWidth = 1.9;
+                ctx.stroke();
+            });
+            ctx.restore();
+
+            // 介面標籤
+            const drawBadge = (x, y, txt, fg, bd) => {
+                ctx.save();
+                ctx.font = '700 9.5px "Noto Sans TC", sans-serif';
+                const w = ctx.measureText(txt).width + 12;
+                drawRoundedRect(ctx, x, y - 8.5, w, 17, 5);
+                ctx.fillStyle = 'rgba(11, 17, 32, 0.9)';
+                ctx.fill();
+                ctx.strokeStyle = bd;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.fillStyle = fg;
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(txt, x + 6, y + 0.5);
+                ctx.restore();
+            };
+
+            drawBadge(8, 13, '多晶矽原料 (無序晶粒 + 雜質)', '#cbd5e1', '#64748b');
+            drawBadge(MICRO_W - 102, topY, '上熔化界面 🔥', '#fdba74', '#f97316');
+            drawBadge(MICRO_W - 134, botY, '下結晶界面 (排斥雜質 ↑)', '#e9d5ff', '#a855f7');
+            drawBadge(8, MICRO_H - 13, '超高純單晶矽 (零雜質規則晶格)', '#bae6fd', '#38bdf8');
+            ctx.restore();
+        }
+
+        // ============================================================================
+        // 更新 UI 文字、進度條與警示狀態
+        // ============================================================================
+        function updateUI() {
+            const st = STAGE_INFO[state.stage];
+
+            document.getElementById('val-temp').textContent = `${Math.round(state.rfTemp)} °C`;
+            document.getElementById('val-pull').textContent = `${state.pullRate.toFixed(1)} mm/min`;
+            document.getElementById('val-feed').textContent = `${state.feedRate.toFixed(1)} mm/min`;
+
+            for (let i = 0; i < 6; i++) {
+                const btn = document.getElementById(`stage-btn-${i}`);
+                if (i === state.stage) btn.classList.add('stage-btn-active');
+                else btn.classList.remove('stage-btn-active');
+            }
+
+            // 總進度百分比 (0% ~ 100%)
+            let pct = 0;
+            if (state.stage === 0) pct = Math.round(state.preheatProgress * 12);
+            else if (state.stage < 5) pct = Math.round(12 + (state.ingotProfile.length / MAX_SLICES) * 78);
+            else pct = Math.round(90 + state.coolProgress * 10);
+
+            document.getElementById('overall-progress-bar').style.width = `${pct}%`;
+            document.getElementById('overall-pct-text').textContent = `${pct}%`;
+
+            // 警示浮層與重播膠囊
+            document.getElementById('alert-freeze').classList.toggle('hidden', !state.isFrozen);
+            document.getElementById('alert-overheat').classList.toggle('hidden', !state.overheatCrashed);
+            document.getElementById('replay-banner').classList.toggle('hidden', !(state.stage === 5 && state.coolProgress >= 0.98));
+
+            // 微觀狀態標籤與階段解說
+            const microTag = document.getElementById('micro-status-tag');
+            if (state.overheatCrashed) microTag.textContent = '💥 過熱表面張力失效';
+            else if (state.isFrozen) microTag.textContent = '❄️ 低於 1414°C 凝固鎖死';
+            else if (state.stage === 0) microTag.textContent = '🔥 RF 渦電流熔化尖端';
+            else if (state.stage === 1) microTag.textContent = '⚡ 縮頸排除紅色差排';
+            else if (state.stage === 5) microTag.textContent = '✔ 超高純單晶冷卻完成';
+            else microTag.textContent = '✨ k₀ < 1 雜質彈回液相';
+
+            document.getElementById('guide-stage-title').textContent = `📘 ${st.name}`;
+            document.getElementById('guide-stage-en').textContent = st.en;
+            document.getElementById('guide-physics').textContent = st.physics;
+            document.getElementById('guide-tip').textContent = st.tip;
+        }
+
+        // ============================================================================
+        // 高 DPI 自適應 Canvas 管理與 60fps 主迴圈
+        // ============================================================================
+        const furnaceCanvas = document.getElementById('canvas-furnace');
+        const furnaceCtx = furnaceCanvas.getContext('2d');
+        const microCanvas = document.getElementById('canvas-micro');
+        const microCtx = microCanvas.getContext('2d');
+
+        function resizeCanvases() {
+            const dpr = window.devicePixelRatio || 1;
+            const setup = (el, ctx, logicalW, logicalH) => {
+                const rect = el.getBoundingClientRect();
+                if (rect.width === 0 || rect.height === 0) return;
+                el.width = Math.round(rect.width * dpr);
+                el.height = Math.round(rect.height * dpr);
+                ctx.setTransform(
+                    (rect.width * dpr) / logicalW, 0,
+                    0, (rect.height * dpr) / logicalH,
+                    0, 0
+                );
+            };
+            setup(furnaceCanvas, furnaceCtx, FURNACE_W, FURNACE_H);
+            setup(microCanvas, microCtx, MICRO_W, MICRO_H);
+        }
+
+        let lastTime = performance.now();
+        let uiThrottle = 0;
+
+        function animateLoop(now) {
+            const rawDt = Math.min(0.05, (now - lastTime) / 1000);
+            lastTime = now;
+
+            updateSimulation(rawDt);
+            drawFurnace(furnaceCtx);
+            drawMicroscope(microCtx);
+
+            uiThrottle += rawDt;
+            if (uiThrottle >= 0.1) {
+                uiThrottle = 0;
+                updateUI();
+            }
+
+            requestAnimationFrame(animateLoop);
+        }
+
+        window.addEventListener('resize', resizeCanvases);
+
+        window.onload = function () {
+            initParticles();
+            resizeCanvases();
+            updatePlayButtonUI();
+            syncSlidersFromState();
+            updateUI();
+            lastTime = performance.now();
+            requestAnimationFrame(animateLoop);
+        };
+    </script>
+</body>
+</html>
